@@ -13,8 +13,9 @@
     <!-- Theme used for syntax highlighting of code -->
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/reveal.js/3.8.0/lib/css/zenburn.min.css">
 
-
     <script>
+      const revealCdn = "//cdnjs.cloudflare.com/ajax/libs/reveal.js/3.8.0/";
+
       // リクエストパラメータを取得
       function getRequestParameters() {
         return location.search.substring(1).split("&").reduce((acc, cur) => {
@@ -38,7 +39,7 @@
           let link = document.createElement("link");
           link.rel = "stylesheet";
           link.type = "text/css";
-          link.href = "//cdnjs.cloudflare.com/ajax/libs/reveal.js/3.8.0/css/theme/" + opt.theme + ".min.css";
+          link.href = revealCdn + "css/theme/" + opt.theme + ".min.css";
           document.getElementsByTagName("head")[0].appendChild(link);
 	}
 
@@ -47,20 +48,22 @@
 
         Reveal.initialize({
           dependencies: [
-            { src: "//cdnjs.cloudflare.com/ajax/libs/reveal.js/3.8.0/plugin/markdown/marked.js" },
-            { src: "//cdnjs.cloudflare.com/ajax/libs/reveal.js/3.8.0/plugin/markdown/markdown.min.js" },
-            { src: "//cdnjs.cloudflare.com/ajax/libs/reveal.js/3.8.0/plugin/notes/notes.min.js", async: true },
-            { src: "//cdnjs.cloudflare.com/ajax/libs/reveal.js/3.8.0/plugin/highlight/highlight.min.js", async: true, callback: function() { hljs.initHighlighting(); } }
+            {src: revealCdn + "plugin/markdown/marked.js"},
+            {src: revealCdn + "plugin/markdown/markdown.min.js"},
+            {src: revealCdn + "plugin/notes/notes.min.js", async: true},
+            {src: revealCdn + "plugin/highlight/highlight.min.js", async: true}
           ]
         }, false);
+
         Reveal.addEventListener("ready", (event) => {
           // タイトル設定
           document.title = document.getElementsByTagName("h1")[0].innerText;
 
           // fix img.src to relative path from index.html
           const url = location.href.replace(/\?.*$/,"");
-          const mainPath = url.substring(0,url.lastIndexOf("/"));
-          const markDownDirPath = markdownUrl.substring(0, markdownUrl.lastIndexOf("/"));
+          const mainPath = url.substring(0, url.lastIndexOf("/"));
+          const markDownDirPath =
+	      markdownUrl.substring(0, markdownUrl.lastIndexOf("/"));
           Array.from(document.getElementsByTagName("img"), el => {
             const imagePath = el.getAttribute("src");
             const relativePath = imagePath.split(mainPath)[1];
@@ -68,11 +71,12 @@
               // another domain and absolute path case
               return;
             }
-            const result = relativePath ? markDownDirPath + relativePath : markDownDirPath + "/" + imagePath;
-            el.setAttribute("src",result);
+            const result = relativePath ?
+		markDownDirPath + relativePath :
+		markDownDirPath + "/" + imagePath;
+            el.setAttribute("src", result);
           });
         });
-
       }
 
       window.addEventListener("load", () => {
@@ -80,6 +84,7 @@
           alert("URLの末尾にマークダウンファイルのPATHを指定してください。例 : 「?slide=20170827/example.md」")
           return
         }
+
         const parameters = getRequestParameters();
         const markdownUrl = parameters["slide"];
         if (!markdownUrl) {
@@ -89,20 +94,22 @@
 
 	// YAML front matter の解釈
 	var xhr = new XMLHttpRequest();
-	xhr.addEventListener("load", () => showMarkdown(markdownUrl, xhr.responseText));
+	xhr.addEventListener(
+	    "load", () => showMarkdown(markdownUrl, xhr.responseText));
 	xhr.open("GET", markdownUrl, false);
 	xhr.send();
       });
-      </script>
 
-    <!-- Printing and PDF exports -->
-    <script>
-      var link = document.createElement( "link" );
+      // Printing and PDF exports
+      var link = document.createElement("link");
       link.rel = "stylesheet";
       link.type = "text/css";
-      link.href = window.location.search.match( /print-pdf/gi ) ? "//cdnjs.cloudflare.com/ajax/libs/reveal.js/3.8.0/css/print/pdf.min.css" : "//cdnjs.cloudflare.com/ajax/libs/reveal.js/3.8.0/css/print/paper.css";
-      document.getElementsByTagName( "head" )[0].appendChild(link);
+      link.href = window.location.search.match(/print-pdf/gi)
+	  ? revealCdn + "css/print/pdf.min.css"
+	  : revealCdn + "css/print/paper.css";
+      document.getElementsByTagName("head")[0].appendChild(link);
     </script>
+
     <style type="text/css">
       /* タイトルの大文字変換を無効 */
       .reveal h1,
@@ -115,10 +122,15 @@
       }
     </style>
   </head>
+
   <body>
     <div class="reveal">
       <div class="slides" id="slides">
-	<section data-markdown data-separator="^\r?\n---\r?\n$" data-separator-vertical="^\r?\n--\r?\n$" id="slide">
+	<section
+	    data-markdown
+	    data-separator="^\r?\n---\r?\n$"
+	    data-separator-vertical="^\r?\n--\r?\n$"
+	    id="slide">
 	  <script type="text/template" id="markdown">
 	  </script>
 	</section>
