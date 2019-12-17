@@ -25,7 +25,8 @@
         }, {});
       };
 
-      function showMarkdown(markdownUrl, md) {
+      function showMarkdown(parameters, md) {
+	let markdownUrl = parameters["slide"];
 	// Obtain the YAML front matter
 	const re = /\s*^---\s*$(.*?)^---\s*$(.*)/ms;
 	const mat = re.exec(md);
@@ -95,8 +96,12 @@
 	// YAML front matter の解釈
 	var xhr = new XMLHttpRequest();
 	xhr.addEventListener(
-	    "load", () => showMarkdown(markdownUrl, xhr.responseText));
+	    "load", () => showMarkdown(parameters, xhr.responseText));
 	xhr.open("GET", markdownUrl, false);
+	if ("token" in parameters) {
+	  xhr.setRequestHeader("Authorization", "token " + parameters.token);
+	  xhr.setRequestHeader("Accept", "application/vnd.github.v3.raw");
+	}
 	xhr.send();
       });
 
