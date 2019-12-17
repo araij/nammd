@@ -25,16 +25,37 @@
         }, {});
       };
 
+      function getGHPrivateBlob(owner, repo, path, token, callback) {
+	// https://stackoverflow.com/a/42724593
+	let xhr = new XMLHttpRequest();
+	xhr.responseType = "blob";
+	xhr.onreadystatechange = function () {
+	  if (xhr.readyState == XMLHttpRequest.DONE && xhr.status == 200) {
+	    callback(xhr);
+	  }
+	};
+	xhr.open("GET", `https://api.github.com/repos/${owner}/${repo}/contents/${path}`, true);
+	xhr.setRequestHeader("Authorization", `token ${token}`);
+	xhr.setRequestHeader("Accept", "application/vnd.github.v3.raw");
+	xhr.send();
+      }
+
       function showMarkdown(parameters, md) {
 	let markdownUrl = parameters["slide"];
+
+	let opt = {theme: "white"};
+
 	// Obtain the YAML front matter
 	const re = /\s*^---\s*$(.*?)^---\s*$(.*)/ms;
-	const mat = re.exec(md);
 
-	const frontmatter = mat[1];
-	const mdbody = mat[2];
-
-	const opt = jsyaml.load(frontmatter);
+	let mdbody = md;
+	if (md.search(re) == 0) {
+	  const mat = re.exec(md);
+	  if (mat && mat.length == 3) {
+	    opt = {...opt, ...jsyaml.load(mat[1])};
+	    mdbody = mat[2];
+	  }
+	}
 
 	if (opt.theme) {
           let link = document.createElement("link");
@@ -66,16 +87,34 @@
           const markDownDirPath =
 	      markdownUrl.substring(0, markdownUrl.lastIndexOf("/"));
           Array.from(document.getElementsByTagName("img"), el => {
-            const imagePath = el.getAttribute("src");
-            const relativePath = imagePath.split(mainPath)[1];
-            if (!relativePath && imagePath.match(/^(https?:)?\/\//)) {
-              // another domain and absolute path case
-              return;
-            }
-            const result = relativePath ?
-		markDownDirPath + relativePath :
-		markDownDirPath + "/" + imagePath;
-            el.setAttribute("src", result);
+	    const imagePath = el.getAttribute("src");
+	    const relativePath = imagePath.split(mainPath)[1];
+	    if (!relativePath && imagePath.match(/^(https?:)?\/\//)) {
+	      // another domain and absolute path case
+	      return;
+	    }
+	    if ("token" in parameters) {
+	      console.log(url);
+	      console.log(mainPath);
+	      console.log(markDownDirPath);
+	      console.log(imagePath);
+	      console.log(relativePath);
+
+	      const ghre = new RegExp("https://api.github.com/repos/([^/]+)/([^/]+)/contents/?(.*)");
+	      const mat = ghre.exec(markDownDirPath);
+	      const owner = mat[1];
+	      const repo = mat[2];
+	      const path = mat[3];
+
+	      getGHPrivateBlob(owner, repo, `${path}/${imagePath}`, parameters.token, (xhr) => {
+		el.setAttribute("src", URL.createObjectURL(xhr.response));
+	      });
+	    } else {
+	      const result = relativePath ?
+		  markDownDirPath + relativePath :
+		  markDownDirPath + "/" + imagePath;
+	      el.setAttribute("src", result);
+	    }
           });
         });
       }
