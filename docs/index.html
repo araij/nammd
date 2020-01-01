@@ -120,23 +120,18 @@
       }
 
       window.addEventListener("load", () => {
-        if (document.location.search.length < 1) {
-          alert("URLの末尾にマークダウンファイルのPATHを指定してください。例 : 「?slide=20170827/example.md」")
-          return
-        }
-
-        const parameters = getRequestParameters();
-        const markdownUrl = parameters["slide"];
-        if (!markdownUrl) {
-          alert("URLの末尾にマークダウンファイルのPATHを指定してください。例 : 「?slide=20170827/example.md」")
-          return
+        let parameters = getRequestParameters();
+        while (!parameters.slide) {
+	  parameters.slide = window.prompt(
+	      "Input a Markdown URL",
+	      "https://araij.github.io/nammd/example/slide1.md");
         }
 
 	// YAML front matter の解釈
 	var xhr = new XMLHttpRequest();
 	xhr.addEventListener(
 	    "load", () => showMarkdown(parameters, xhr.responseText));
-	xhr.open("GET", markdownUrl, false);
+	xhr.open("GET", parameters.slide, false);
 	if ("token" in parameters) {
 	  xhr.setRequestHeader("Authorization", "token " + parameters.token);
 	  xhr.setRequestHeader("Accept", "application/vnd.github.v3.raw");
