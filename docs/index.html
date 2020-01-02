@@ -26,10 +26,11 @@
         }, {});
       };
 
-      function getGHPrivateBlob(owner, repo, path, token, callback) {
+      function getGHContents(
+          owner, repo, path, token, callback, type = "text") {
         // https://stackoverflow.com/a/42724593
         let xhr = new XMLHttpRequest();
-        xhr.responseType = "blob";
+        xhr.responseType = type;
         xhr.onreadystatechange = function () {
           if (xhr.readyState == XMLHttpRequest.DONE && xhr.status == 200) {
             callback(xhr);
@@ -39,6 +40,22 @@
         xhr.setRequestHeader("Authorization", `token ${token}`);
         xhr.setRequestHeader("Accept", "application/vnd.github.v3.raw");
         xhr.send();
+      }
+
+      function decomposeGitHubURL(url) {
+        const re = new RegExp(
+          "^https://github\.com/([^/]+)/([^/]+)/raw/([^/]+)/(.*)$");
+        const mat = re.exec(url);
+        if (mat.length == 5) {
+          return {
+            owner: mat[1],
+            repository: mat[2],
+            commit: mat[3],
+            path: mat[4],
+          };
+        } else {
+          return null;
+        }
       }
 
       function showMarkdown(parameters, md) {
@@ -95,21 +112,16 @@
               return;
             }
             if ("token" in parameters) {
-              console.log(url);
-              console.log(mainPath);
-              console.log(markDownDirPath);
-              console.log(imagePath);
-              console.log(relativePath);
-
-              const ghre = new RegExp("https://api.github.com/repos/([^/]+)/([^/]+)/contents/?(.*)");
-              const mat = ghre.exec(markDownDirPath);
-              const owner = mat[1];
-              const repo = mat[2];
-              const path = mat[3];
-
-              getGHPrivateBlob(owner, repo, `${path}/${imagePath}`, parameters.token, (xhr) => {
-                el.setAttribute("src", URL.createObjectURL(xhr.response));
-              });
+              const repoinfo = decomposeGitHubURL(markDownDirPath);
+              getGHContents(
+                  repoinfo.owner,
+                  repoinfo.repository,
+                  `${repoinfo.path}/${imagePath}`,
+                  parameters.token,
+                  (xhr) => {
+                    el.setAttribute("src", URL.createObjectURL(xhr.response));
+                  },
+                  "blob");
             } else {
               const result = relativePath ?
                   markDownDirPath + relativePath :
@@ -120,6 +132,34 @@
         });
       }
 
+      function getMarkdown(parameters) {
+        let xhr = new XMLHttpRequest();
+        xhr.addEventListener("error", () => {
+          const gh = decomposeGitHubURL(parameters.slide);
+          if (gh) {
+            if (!parameters.token) {
+              parameters.token = window.prompt("A network error occured. \n" +
+                  "If the Markdown file is in a GitHub private repository, " +
+                  "retry with a personal access token:");
+            }
+            if (parameters.token) {
+              getGHContents(gh.owner, gh.repository, gh.path, parameters.token,
+                  (x) => showMarkdown(parameters, x.responseText));
+            }
+          }
+        });
+        xhr.addEventListener("load", () => {
+          if (xhr.status == 200) {
+            showMarkdown(parameters, xhr.responseText);
+          } else {
+            alert(`Error: the server responded with ${xhr.status} ` +
+                `${xhr.statusText}.`);
+          }
+        });
+        xhr.open("GET", parameters.slide);
+        xhr.send();
+      };
+
       window.addEventListener("load", () => {
         let parameters = getRequestParameters();
         while (!parameters.slide) {
@@ -127,17 +167,7 @@
               "Input a Markdown URL",
               "https://araij.github.io/nammd/example/slide1.md");
         }
-
-        // YAML front matter の解釈
-        var xhr = new XMLHttpRequest();
-        xhr.addEventListener(
-            "load", () => showMarkdown(parameters, xhr.responseText));
-        xhr.open("GET", parameters.slide, false);
-        if ("token" in parameters) {
-          xhr.setRequestHeader("Authorization", "token " + parameters.token);
-          xhr.setRequestHeader("Accept", "application/vnd.github.v3.raw");
-        }
-        xhr.send();
+        getMarkdown(parameters);
       });
 
       // Printing and PDF exports
