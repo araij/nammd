@@ -93,29 +93,26 @@ function applyOptions(opts) {
   }
 }
 
-function fixImagePath(imagePath, params, callback) {
-  // Fix img.src to relative path from index.html
-  const url = location.href.replace(/\?.*$/, "");
-  const mainPath = url.substring(0, url.lastIndexOf("/"));
-  const markDownDirPath =
-      params.slide.substring(0, params.slide.lastIndexOf("/"));
-  const relativePath = imagePath.split(mainPath)[1];
-  if (!relativePath && imagePath.match(/^(https?:)?\/\//)) {
-    callback(imagePath);
-  } else if ("token" in params) {
-    const repoinfo = parseGitHubUrl(markDownDirPath);
+// Replace a relative path with an absolute URL
+function fixImagePath(path, params, callback) {
+  if (path.match(/^(https?:)?\/\//)) {
+    callback(path);
+    return;
+  }
+
+  const dir = params.slide.substring(0, params.slide.lastIndexOf("/"));
+  // Use a personal access token if it is given
+  if ("token" in params) {
+    const g = parseGitHubUrl(dir);
     getGitHubContents(
-	repoinfo.owner,
-	repoinfo.repository,
-	`${repoinfo.path}/${imagePath}`,
+	g.owner,
+	g.repository,
+	`${g.path}/${path}`,
 	params.token,
 	(xhr) => callback(URL.createObjectURL(xhr.response)),
 	"blob");
   } else {
-    const result = relativePath ?
-	markDownDirPath + relativePath :
-	markDownDirPath + "/" + imagePath;
-    callback(result);
+    callback(dir + "/" + path);
   }
 }
 
