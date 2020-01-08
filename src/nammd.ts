@@ -143,11 +143,24 @@ function showMarkdown(params, md) {
   Reveal.addEventListener("ready", (event) => {
     // Use the first 'h1' element as a slide title
     document.title = document.getElementsByTagName("h1")[0].innerText;
-    // Fix img.src to relative path from index.html
+    // Fix 'src' of 'img' elements to relative path from index.html
     let es: any = document.getElementsByTagName("img");
     for (let e of es) {
       fixImagePath(
           e.getAttribute("src"), params, (url) => e.setAttribute("src", url));
+    }
+    // Fix URLs in user-specified 'style' tags to relative path from index.html
+    // FIXME: Ad-hoc code!!
+    const dir = params.slide.substring(0, params.slide.lastIndexOf("/"));
+    let slides: any = document.getElementById("slides").children;
+    for (let slide of slides) {
+      let styles: any = slide.getElementsByTagName("style");
+      for (let style of styles) {
+        style.innerHTML = style.innerHTML.replace(
+          /url\(['"](?!http)(.*)['"]\)/,
+          `url('${dir}/$1')`
+        );
+      }
     }
   });
 }
