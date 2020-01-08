@@ -1,3 +1,7 @@
+import * as jsyaml from 'js-yaml';
+
+declare var Reveal: any;
+
 const revealCdn = "//cdnjs.cloudflare.com/ajax/libs/reveal.js/3.8.0/";
 
 const defaultOptions = {
@@ -5,7 +9,7 @@ const defaultOptions = {
 };
 
 // リクエストパラメータを取得
-function getRequestParameters() {
+function getRequestParameters(): {[index: string]: string} {
   return location.search.substring(1).split("&").reduce((acc, cur) => {
     const element = cur.split("=");
     acc[decodeURIComponent(element[0])] = decodeURIComponent(element[1]);
@@ -13,15 +17,20 @@ function getRequestParameters() {
   }, {});
 };
 
+interface GetHttpOptions  {
+  type?: any;
+  header?: any;
+  onerror?: any;
+}
+
 function getHttp(
-  url,
-  onload,
-  {
-    type = "text",
-    header = {},
-    onerror = undefined,
-  } = {}
-) {
+    url,
+    onload,
+    {
+      type = "text",
+      header = {},
+      onerror = undefined,
+    }: GetHttpOptions) {
   let xhr = new XMLHttpRequest();
   xhr.addEventListener("load", () => onload(xhr));
   xhr.addEventListener("error", () => {
@@ -29,7 +38,7 @@ function getHttp(
       onerror(xhr);
     } else {
       alert("Error: the server responded with " +
-	  `${xhr.status} ${xhr.statusText}`);
+          `${xhr.status} ${xhr.statusText}`);
     }
   });
   xhr.responseType = type;
@@ -48,8 +57,8 @@ function getGitHubContents(owner, repo, path, token, onload, type = "text") {
     {
       type: type,
       header: {
-	Authorization: `token ${token}`,
-	Accept: "application/vnd.github.v3.raw",
+        Authorization: `token ${token}`,
+        Accept: "application/vnd.github.v3.raw",
       },
     });
 }
@@ -105,12 +114,12 @@ function fixImagePath(path, params, callback) {
   if ("token" in params) {
     const g = parseGitHubUrl(dir);
     getGitHubContents(
-	g.owner,
-	g.repository,
-	`${g.path}/${path}`,
-	params.token,
-	(xhr) => callback(URL.createObjectURL(xhr.response)),
-	"blob");
+        g.owner,
+        g.repository,
+        `${g.path}/${path}`,
+        params.token,
+        (xhr) => callback(URL.createObjectURL(xhr.response)),
+        "blob");
   } else {
     callback(dir + "/" + path);
   }
@@ -135,9 +144,10 @@ function showMarkdown(params, md) {
     // Use the first 'h1' element as a slide title
     document.title = document.getElementsByTagName("h1")[0].innerText;
     // Fix img.src to relative path from index.html
-    for (let el of document.getElementsByTagName("img")) {
+    let es: any = document.getElementsByTagName("img");
+    for (let e of es) {
       fixImagePath(
-	  el.getAttribute("src"), params, (url) => el.setAttribute("src", url));
+          e.getAttribute("src"), params, (url) => e.setAttribute("src", url));
     }
   });
 }
@@ -160,18 +170,18 @@ window.addEventListener("load", () => {
     },
     {
       onerror: (xhr) => {
-	const gh = parseGitHubUrl(params.slide);
-	if (gh) {
-	  if (!params.token) {
-	    params.token = window.prompt("A network error occured. \n" +
-		"If the Markdown file is in a GitHub private repository, " +
-		"retry with a personal access token:");
-	  }
-	  if (params.token) {
-	    getGitHubContents(gh.owner, gh.repository, gh.path, params.token,
-		(x) => showMarkdown(params, x.responseText));
-	  }
-	}
+        const gh = parseGitHubUrl(params.slide);
+        if (gh) {
+          if (!params.token) {
+            params.token = window.prompt("A network error occured. \n" +
+                "If the Markdown file is in a GitHub private repository, " +
+                "retry with a personal access token:");
+          }
+          if (params.token) {
+            getGitHubContents(gh.owner, gh.repository, gh.path, params.token,
+                (x) => showMarkdown(params, x.responseText));
+          }
+        }
       },
     });
 });

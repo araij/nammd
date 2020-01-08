@@ -1,3 +1,8 @@
 .DS_Store
 Thumbs.db
+docs/nammd.js
+docs/licenses.txt
+/node_modules/
+.*.swp
+.*.swo
 
