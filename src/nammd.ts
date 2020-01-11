@@ -147,8 +147,13 @@ function showMarkdown(params, md) {
       {src: revealCdn + "plugin/markdown/marked.js"},
       {src: revealCdn + "plugin/markdown/markdown.min.js"},
       {src: revealCdn + "plugin/notes/notes.min.js", async: true},
-      {src: revealCdn + "plugin/highlight/highlight.min.js", async: true}
-    ]
+      {src: revealCdn + "plugin/highlight/highlight.min.js", async: true},
+      {src: revealCdn + 'plugin/math/math.js', async: true},
+    ],
+    math: {
+      mathjax: 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js',
+      config: 'TeX-AMS_HTML-full',
+    },
   }, false);
 
   Reveal.addEventListener("ready", (event) => {
