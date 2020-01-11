@@ -6,6 +6,8 @@ const revealCdn = "//cdnjs.cloudflare.com/ajax/libs/reveal.js/3.8.0/";
 
 const defaultOptions = {
   theme: "white",
+  separator: "^\r?\n---\r?\n$",
+  verticalSeparator: "^\r?\n--\r?\n$",
 };
 
 // リクエストパラメータを取得
@@ -99,6 +101,15 @@ function applyOptions(opts) {
     link.type = "text/css";
     link.href = revealCdn + "css/theme/" + opts.theme + ".min.css";
     document.getElementsByTagName("head")[0].appendChild(link);
+  }
+
+  if (opts.separator) {
+    document.getElementById("slide").dataset['separator'] = opts.separator;
+  }
+
+  if (opts.verticalSeparator) {
+    document.getElementById("slide").dataset['separatorVertical'] =
+        opts.verticalSeparator;
   }
 }
 
