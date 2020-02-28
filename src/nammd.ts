@@ -94,7 +94,7 @@ function separateFrontMatter(str) {
   return [{}, str];
 }
 
-function applyOptions(opts) {
+function applyOptions(opts: {[key: string]: any}): {[key: string]: any} {
   if (opts.theme) {
     let link = document.createElement("link");
     link.rel = "stylesheet";
@@ -102,15 +102,20 @@ function applyOptions(opts) {
     link.href = revealCdn + "css/theme/" + opts.theme + ".min.css";
     document.getElementsByTagName("head")[0].appendChild(link);
   }
+  delete opts.theme;
 
   if (opts.separator) {
     document.getElementById("slide").dataset['separator'] = opts.separator;
   }
+  delete opts.separator;
 
   if (opts.verticalSeparator) {
     document.getElementById("slide").dataset['separatorVertical'] =
         opts.verticalSeparator;
   }
+  delete opts.verticalSeparator;
+
+  return opts;
 }
 
 // Replace a relative path with an absolute URL
@@ -139,7 +144,7 @@ function fixImagePath(path, params, callback) {
 function showMarkdown(params, md) {
   const [fm, mdbody] = separateFrontMatter(md);
 
-  applyOptions({...defaultOptions, ...fm});
+  const revealConf = applyOptions({...defaultOptions, ...fm});
   document.getElementById("markdown").innerHTML = mdbody;
 
   Reveal.initialize({
@@ -154,6 +159,7 @@ function showMarkdown(params, md) {
       mathjax: 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js',
       config: 'TeX-AMS_HTML-full',
     },
+    ...revealConf
   }, false);
 
   Reveal.addEventListener("ready", (event) => {
