@@ -123,31 +123,24 @@ function applyOptions(opts: {[key: string]: any}): {[key: string]: any} {
 }
 
 // Replace a relative path with an absolute URL
-// TODO: prpmisify
 async function fixImagePath(
   path: string,
-  params: {[key: string]: string},
-  callback: any
-) {
+  params: {[key: string]: string}
+): Promise<string> {
   if (path.match(/^(https?:)?\/\//)) {
-    callback(path);
-    return;
+    return path;
   }
 
   const dir = params.slide.substring(0, params.slide.lastIndexOf("/"));
   // Use a personal access token if it is given
-  if ("token" in params) {
-    const g = parseGitHubUrl(dir);
-    const xhr = await getGitHubContents(
-        g.owner,
-        g.repository,
-        `${g.path}/${path}`,
-        params.token,
-        "blob");
-    callback(URL.createObjectURL(xhr.response));
-  } else {
-    callback(dir + "/" + path);
+  if (!("token" in params)) {
+    return dir + "/" + path;
   }
+
+  const g = parseGitHubUrl(dir);
+  const xhr = await getGitHubContents(
+      g.owner, g.repository, `${g.path}/${path}`, params.token, "blob");
+  return URL.createObjectURL(xhr.response);
 }
 
 function showMarkdown(params: {[key: string]: string}, md: string) {
@@ -175,12 +168,13 @@ function showMarkdown(params: {[key: string]: string}, md: string) {
   Reveal.addEventListener("ready", (event: any) => {
     // Use the first 'h1' element as a slide title
     document.title = document.getElementsByTagName("h1")[0].innerText;
+
     // Fix 'src' of 'img' elements to relative path from index.html
-    let es: any = document.getElementsByTagName("img");
-    for (let e of es) {
-      fixImagePath(
-          e.getAttribute("src"), params, (url) => e.setAttribute("src", url));
+    for (let e of document.getElementsByTagName("img") as any) {
+      fixImagePath(e.getAttribute("src"), params)
+        .then((url) => e.setAttribute("src", url));
     }
+
     // Fix URLs in user-specified 'style' tags to relative path from index.html
     // FIXME: Ad-hoc code!!
     const dir = params.slide.substring(0, params.slide.lastIndexOf("/"));
