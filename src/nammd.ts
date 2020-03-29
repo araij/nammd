@@ -123,7 +123,7 @@ function applyOptions(opts: {[key: string]: any}): {[key: string]: any} {
 }
 
 // Replace a relative path with an absolute URL
-async function fixImagePath(
+async function getImagePath(
   path: string,
   params: {[key: string]: string}
 ): Promise<string> {
@@ -171,7 +171,7 @@ function showMarkdown(params: {[key: string]: string}, md: string) {
 
     // Fix 'src' of 'img' elements to relative path from index.html
     for (let e of document.getElementsByTagName("img") as any) {
-      fixImagePath(e.getAttribute("src"), params)
+      getImagePath(e.getAttribute("src"), params)
         .then((url) => e.setAttribute("src", url));
     }
 
