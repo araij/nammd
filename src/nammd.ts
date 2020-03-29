@@ -53,7 +53,7 @@ function getGitHubContents(
   path: string,
   token: string,
   type: XMLHttpRequestResponseType = "text",
-): Promise<XMLHttpRequest> {
+): Promise<any> {
   // https://stackoverflow.com/a/42724593
   return getHttp(
     `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
@@ -144,9 +144,9 @@ async function getImagePath(
   }
 
   const g = parseGitHubUrl(dir);
-  const xhr = await getGitHubContents(
+  const res = await getGitHubContents(
       g.owner, g.repository, `${g.path}/${path}`, params.token, "blob");
-  return URL.createObjectURL(xhr.response);
+  return URL.createObjectURL(res);
 }
 
 function showMarkdown(params: {[key: string]: string}, md: string) {
@@ -221,7 +221,7 @@ window.addEventListener("load", () => {
         }
         if (params.token) {
           getGitHubContents(gh.owner, gh.repository, gh.path, params.token)
-            .then((xhr) => showMarkdown(params, xhr.responseText));
+            .then((res) => showMarkdown(params, res));
         }
       }
     });
