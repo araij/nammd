@@ -215,9 +215,9 @@ window.addEventListener("load", () => {
       const gh = parseGitHubUrl(params.slide);
       if (gh) {
         if (!params.token) {
-          params.token = window.prompt("A network error occured. \n" +
-              "If the Markdown file is in a GitHub private repository, " +
-              "retry with a personal access token:");
+          params.token = window.prompt("A network error occured. \n"
+              + "If the Markdown file is located in a GitHub private "
+              + "repository, retry with a personal access token:");
         }
         if (params.token) {
           getGitHubContents(gh.owner, gh.repository, gh.path, params.token)
