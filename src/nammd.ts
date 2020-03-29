@@ -10,8 +10,7 @@ const defaultOptions = {
   verticalSeparator: "^\r?\n--\r?\n$",
 };
 
-// リクエストパラメータを取得
-function getRequestParameters(): {[index: string]: string} {
+function getRequestParameters(): {[key: string]: string} {
   return location.search.substring(1).split("&").reduce((acc, cur) => {
     const element = cur.split("=");
     acc[decodeURIComponent(element[0])] = decodeURIComponent(element[1]);
@@ -20,42 +19,40 @@ function getRequestParameters(): {[index: string]: string} {
 };
 
 interface GetHttpOptions  {
-  type?: any;
-  header?: any;
-  onerror?: any;
+  type?: XMLHttpRequestResponseType;
+  header?: {[key: string]: string;};
 }
 
 function getHttp(
-    url,
-    onload,
-    {
-      type = "text",
-      header = {},
-      onerror = undefined,
-    }: GetHttpOptions) {
-  let xhr = new XMLHttpRequest();
-  xhr.addEventListener("load", () => onload(xhr));
-  xhr.addEventListener("error", () => {
-    if (onerror) {
-      onerror(xhr);
-    } else {
-      alert("Error: the server responded with " +
-          `${xhr.status} ${xhr.statusText}`);
+  url: string,
+  {
+    type = "text",
+    header = {},
+  }: GetHttpOptions = {},
+): Promise<XMLHttpRequest> {
+  return new Promise((resolve, reject) => {
+    let xhr = new XMLHttpRequest();
+    xhr.addEventListener("load", () => resolve(xhr));
+    xhr.addEventListener("error", () => reject(xhr));
+    xhr.responseType = type;
+    xhr.open("GET", url);
+    for (let k in header) {
+      xhr.setRequestHeader(k, header[k]);
     }
+    xhr.send();
   });
-  xhr.responseType = type;
-  xhr.open("GET", url);
-  for (let k in header) {
-    xhr.setRequestHeader(k, header[k]);
-  }
-  xhr.send();
 }
 
-function getGitHubContents(owner, repo, path, token, onload, type = "text") {
+function getGitHubContents(
+  owner: string,
+  repo: string,
+  path: string,
+  token: string,
+  type: XMLHttpRequestResponseType = "text",
+): Promise<XMLHttpRequest> {
   // https://stackoverflow.com/a/42724593
-  getHttp(
+  return getHttp(
     `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
-    onload,
     {
       type: type,
       header: {
@@ -65,7 +62,14 @@ function getGitHubContents(owner, repo, path, token, onload, type = "text") {
     });
 }
 
-function parseGitHubUrl(url) {
+interface GitHubRepository {
+  owner: string,
+  repository: string,
+  commit: string,
+  path: string,
+}
+
+function parseGitHubUrl(url: string): GitHubRepository | null {
   const re = new RegExp(
       "^https://github\.com/([^/]+)/([^/]+)/raw/([^/]+)/(.*)$");
   const mat = re.exec(url);
@@ -81,7 +85,9 @@ function parseGitHubUrl(url) {
   }
 }
 
-function separateFrontMatter(str) {
+function separateFrontMatter(
+  str: string,
+): [{[key: string]: string;}, string] {
   const re = /\s*^---\s*$(.*?)^---\s*$(.*)/ms;
   // Since /^/m matches the beginning of each line, we check if the regex
   // matches the beginning of the whole string.
@@ -119,7 +125,12 @@ function applyOptions(opts: {[key: string]: any}): {[key: string]: any} {
 }
 
 // Replace a relative path with an absolute URL
-function fixImagePath(path, params, callback) {
+// TODO: prpmisify
+async function fixImagePath(
+  path: string,
+  params: {[key: string]: string},
+  callback: any
+) {
   if (path.match(/^(https?:)?\/\//)) {
     callback(path);
     return;
@@ -129,19 +140,19 @@ function fixImagePath(path, params, callback) {
   // Use a personal access token if it is given
   if ("token" in params) {
     const g = parseGitHubUrl(dir);
-    getGitHubContents(
+    const xhr = await getGitHubContents(
         g.owner,
         g.repository,
         `${g.path}/${path}`,
         params.token,
-        (xhr) => callback(URL.createObjectURL(xhr.response)),
         "blob");
+    callback(URL.createObjectURL(xhr.response));
   } else {
     callback(dir + "/" + path);
   }
 }
 
-function showMarkdown(params, md) {
+function showMarkdown(params: {[key: string]: string}, md: string) {
   const [fm, mdbody] = separateFrontMatter(md);
 
   const revealConf = applyOptions({...defaultOptions, ...fm});
@@ -156,13 +167,14 @@ function showMarkdown(params, md) {
       {src: revealCdn + 'plugin/math/math.js', async: true},
     ],
     math: {
-      mathjax: 'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js',
+      mathjax:
+          'https://cdnjs.cloudflare.com/ajax/libs/mathjax/2.7.7/MathJax.js',
       config: 'TeX-AMS_HTML-full',
     },
     ...revealConf
   }, false);
 
-  Reveal.addEventListener("ready", (event) => {
+  Reveal.addEventListener("ready", (event: any) => {
     // Use the first 'h1' element as a slide title
     document.title = document.getElementsByTagName("h1")[0].innerText;
     // Fix 'src' of 'img' elements to relative path from index.html
@@ -194,30 +206,27 @@ window.addEventListener("load", () => {
         "Input a Markdown URL",
         "https://araij.github.io/nammd/example/slide1.md");
   }
-  getHttp(
-    params.slide,
-    (xhr) => {
+  getHttp(params.slide)
+    .then((xhr) => {
       if (xhr.status == 200) {
         showMarkdown(params, xhr.responseText);
       } else {
         alert(`Failed to get Markdown: ${xhr.status} ${xhr.statusText}.`);
       }
-    },
-    {
-      onerror: (xhr) => {
-        const gh = parseGitHubUrl(params.slide);
-        if (gh) {
-          if (!params.token) {
-            params.token = window.prompt("A network error occured. \n" +
-                "If the Markdown file is in a GitHub private repository, " +
-                "retry with a personal access token:");
-          }
-          if (params.token) {
-            getGitHubContents(gh.owner, gh.repository, gh.path, params.token,
-                (x) => showMarkdown(params, x.responseText));
-          }
+    })
+    .catch((_) => {
+      const gh = parseGitHubUrl(params.slide);
+      if (gh) {
+        if (!params.token) {
+          params.token = window.prompt("A network error occured. \n" +
+              "If the Markdown file is in a GitHub private repository, " +
+              "retry with a personal access token:");
         }
-      },
+        if (params.token) {
+          getGitHubContents(gh.owner, gh.repository, gh.path, params.token)
+            .then((xhr) => showMarkdown(params, xhr.responseText));
+        }
+      }
     });
 });
 
@@ -229,4 +238,3 @@ link.href = window.location.search.match(/print-pdf/gi)
     ? revealCdn + "css/print/pdf.min.css"
     : revealCdn + "css/print/paper.css";
 document.getElementsByTagName("head")[0].appendChild(link);
-
