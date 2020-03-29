@@ -18,17 +18,15 @@ function getRequestParameters(): {[key: string]: string} {
   }, {});
 };
 
-interface GetHttpOptions  {
-  type?: XMLHttpRequestResponseType;
-  header?: {[key: string]: string;};
-}
-
 function getHttp(
   url: string,
   {
     type = "text",
     header = {},
-  }: GetHttpOptions = {},
+  }: {
+    type?: XMLHttpRequestResponseType;
+    header?: {[key: string]: string};
+  } = {},
 ): Promise<XMLHttpRequest> {
   return new Promise((resolve, reject) => {
     let xhr = new XMLHttpRequest();
@@ -87,7 +85,7 @@ function parseGitHubUrl(url: string): GitHubRepository | null {
 
 function separateFrontMatter(
   str: string,
-): [{[key: string]: string;}, string] {
+): [{[key: string]: string}, string] {
   const re = /\s*^---\s*$(.*?)^---\s*$(.*)/ms;
   // Since /^/m matches the beginning of each line, we check if the regex
   // matches the beginning of the whole string.
