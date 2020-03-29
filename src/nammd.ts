@@ -27,10 +27,16 @@ function getHttp(
     type?: XMLHttpRequestResponseType;
     header?: {[key: string]: string};
   } = {},
-): Promise<XMLHttpRequest> {
+): Promise<any> {
   return new Promise((resolve, reject) => {
     let xhr = new XMLHttpRequest();
-    xhr.addEventListener("load", () => resolve(xhr));
+    xhr.addEventListener("load", () => {
+      if (200 <= xhr.status && xhr.status < 300) {
+        resolve(xhr.response);
+      } else {
+        reject(xhr);
+      }
+    });
     xhr.addEventListener("error", () => reject(xhr));
     xhr.responseType = type;
     xhr.open("GET", url);
@@ -199,14 +205,13 @@ window.addEventListener("load", () => {
         "https://araij.github.io/nammd/example/slide1.md");
   }
   getHttp(params.slide)
-    .then((xhr) => {
-      if (xhr.status == 200) {
-        showMarkdown(params, xhr.responseText);
-      } else {
+    .then((res) => showMarkdown(params, res))
+    .catch((xhr) => {
+      if (xhr.status != 0) {
         alert(`Failed to get Markdown: ${xhr.status} ${xhr.statusText}.`);
+        return;
       }
-    })
-    .catch((_) => {
+
       const gh = parseGitHubUrl(params.slide);
       if (gh) {
         if (!params.token) {
