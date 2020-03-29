@@ -74,19 +74,18 @@ interface GitHubRepository {
 }
 
 function parseGitHubUrl(url: string): GitHubRepository | null {
-  const re = new RegExp(
-      "^https://github\.com/([^/]+)/([^/]+)/raw/([^/]+)/(.*)$");
-  const mat = re.exec(url);
-  if (mat.length == 5) {
-    return {
-      owner: mat[1],
-      repository: mat[2],
-      commit: mat[3],
-      path: mat[4],
-    };
-  } else {
-    return null;
+  const res = [
+    new RegExp("^https://github\.com/([^/]+)/([^/]+)/blob/([^/]+)/(.*)$"),
+    new RegExp("^https://github\.com/([^/]+)/([^/]+)/raw/([^/]+)/(.*)$"),
+  ];
+
+  for (let re of res) {
+    const mat = re.exec(url);
+    if (mat.length == 5) {
+      return {owner: mat[1], repository: mat[2], commit: mat[3], path: mat[4]};
+    }
   }
+  return null;
 }
 
 function separateFrontMatter(
