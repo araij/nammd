@@ -150,9 +150,18 @@ async function getImagePath(
 
 function showMarkdown(params: {[key: string]: string}, md: string) {
   const [fm, mdbody] = separateFrontMatter(md);
-
   const revealConf = applyOptions({...defaultOptions, ...fm});
   document.getElementById("markdown").innerHTML = mdbody;
+
+  // To apply CSS loaded from <link> tags in the Markdown, parse it before
+  // `Reveal.initialize()`.
+  // This prevents Reveal.js from generating wrong layouts when '?print-pdf' is
+  // specified. If these lines are removed, Reveal.js will calculate height of
+  // each page using styles before applying user-specified ones.
+  let el = document.createElement("div");
+  el.innerHTML = mdbody;
+  document.body.appendChild(el);
+  el.remove();
 
   Reveal.initialize({
     dependencies: [
