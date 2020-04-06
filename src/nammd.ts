@@ -196,10 +196,24 @@ function showMarkdown(params: {[key: string]: string}, md: string) {
     for (let slide of slides) {
       let styles: any = slide.getElementsByTagName("style");
       for (let style of styles) {
-        style.innerHTML = style.innerHTML.replace(
-          /url\(['"](?!http)(.*)['"]\)/,
-          `url('${dir}/$1')`
-        );
+        const re = /url\(['"](?!http)(.*)['"]\)/g;
+        let d = {};
+        Promise.all(
+          Array.from(style.innerHTML.matchAll(re))
+            .filter((m: any) => m.length >= 2)
+            .map((m) =>
+                getImagePath(m[1], params).then((url) => { d[m[1]] = url; }))
+        ).then(() => {
+          style.innerHTML = style.innerHTML.replace(
+              re,
+              (_, p1: string) => {
+                if (d[p1].startsWith("blob:")) {
+                  return `url('${d[p1]}')`;
+                } else {
+                  return `url('${dir}/${d[p1]}')`;
+                }
+              });
+        });
       }
     }
   });
