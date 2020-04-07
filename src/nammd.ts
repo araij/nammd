@@ -155,7 +155,7 @@ function editSlides(params: {[key: string]: string}) {
   // Fix 'src' of 'img' elements to relative path from index.html
   for (const e of document.getElementsByTagName("img")) {
     getImagePath(e.getAttribute("src"), params)
-      .then((url) => e.setAttribute("src", url));
+      .then(url => e.setAttribute("src", url));
   }
 
   // Fix URLs in user-specified 'style' tags to relative path from index.html
@@ -167,9 +167,8 @@ function editSlides(params: {[key: string]: string}) {
       let d = {};
       Promise.all(
         Array.from(style.innerHTML.matchAll(re))
-          .filter((m: any) => m.length >= 2)
-          .map((m) =>
-              getImagePath(m[1], params).then((url) => { d[m[1]] = url; }))
+          .filter(m => m.length >= 2)
+          .map(m => getImagePath(m[1], params).then(url => { d[m[1]] = url; }))
       ).then(() => {
         style.innerHTML = style.innerHTML.replace(
             re,
@@ -227,8 +226,8 @@ window.addEventListener("load", () => {
         "https://araij.github.io/nammd/example/slide1.md");
   }
   getHttp(params.slide)
-    .then((res) => showMarkdown(params, res))
-    .catch((xhr) => {
+    .then(res => showMarkdown(params, res))
+    .catch(xhr => {
       if (xhr.status != 0) {
         alert(`Failed to get Markdown: ${xhr.status} ${xhr.statusText}.`);
         return;
@@ -243,7 +242,7 @@ window.addEventListener("load", () => {
         }
         if (params.token) {
           getGitHubContents(gh.owner, gh.repository, gh.path, params.token)
-            .then((res) => showMarkdown(params, res));
+            .then(res => showMarkdown(params, res));
         }
       }
     });
