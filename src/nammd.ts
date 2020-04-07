@@ -148,6 +148,45 @@ async function getImagePath(
   return URL.createObjectURL(res);
 }
 
+function editSlides(params: {[key: string]: string}) {
+  // Use the first 'h1' element as a slide title
+  document.title = document.getElementsByTagName("h1")[0].innerText;
+
+  // Fix 'src' of 'img' elements to relative path from index.html
+  for (let e of document.getElementsByTagName("img") as any) {
+    getImagePath(e.getAttribute("src"), params)
+      .then((url) => e.setAttribute("src", url));
+  }
+
+  // Fix URLs in user-specified 'style' tags to relative path from index.html
+  // FIXME: Ad-hoc code!!
+  const dir = params.slide.substring(0, params.slide.lastIndexOf("/"));
+  const slides: any = document.getElementById("slides").children;
+  for (let slide of slides) {
+    let styles: any = slide.getElementsByTagName("style");
+    for (let style of styles) {
+      const re = /url\(['"](?!http)(.*)['"]\)/g;
+      let d = {};
+      Promise.all(
+        Array.from(style.innerHTML.matchAll(re))
+          .filter((m: any) => m.length >= 2)
+          .map((m) =>
+              getImagePath(m[1], params).then((url) => { d[m[1]] = url; }))
+      ).then(() => {
+        style.innerHTML = style.innerHTML.replace(
+            re,
+            (_, p1: string) => {
+              if (d[p1].startsWith("blob:")) {
+                return `url('${d[p1]}')`;
+              } else {
+                return `url('${dir}/${d[p1]}')`;
+              }
+            });
+      });
+    }
+  }
+}
+
 function showMarkdown(params: {[key: string]: string}, md: string) {
   const [fm, mdbody] = separateFrontMatter(md);
   const revealConf = applyOptions({...defaultOptions, ...fm});
@@ -179,44 +218,7 @@ function showMarkdown(params: {[key: string]: string}, md: string) {
     ...revealConf
   }, false);
 
-  Reveal.addEventListener("ready", (event: any) => {
-    // Use the first 'h1' element as a slide title
-    document.title = document.getElementsByTagName("h1")[0].innerText;
-
-    // Fix 'src' of 'img' elements to relative path from index.html
-    for (let e of document.getElementsByTagName("img") as any) {
-      getImagePath(e.getAttribute("src"), params)
-        .then((url) => e.setAttribute("src", url));
-    }
-
-    // Fix URLs in user-specified 'style' tags to relative path from index.html
-    // FIXME: Ad-hoc code!!
-    const dir = params.slide.substring(0, params.slide.lastIndexOf("/"));
-    let slides: any = document.getElementById("slides").children;
-    for (let slide of slides) {
-      let styles: any = slide.getElementsByTagName("style");
-      for (let style of styles) {
-        const re = /url\(['"](?!http)(.*)['"]\)/g;
-        let d = {};
-        Promise.all(
-          Array.from(style.innerHTML.matchAll(re))
-            .filter((m: any) => m.length >= 2)
-            .map((m) =>
-                getImagePath(m[1], params).then((url) => { d[m[1]] = url; }))
-        ).then(() => {
-          style.innerHTML = style.innerHTML.replace(
-              re,
-              (_, p1: string) => {
-                if (d[p1].startsWith("blob:")) {
-                  return `url('${d[p1]}')`;
-                } else {
-                  return `url('${dir}/${d[p1]}')`;
-                }
-              });
-        });
-      }
-    }
-  });
+  Reveal.addEventListener("ready", _ => editSlides(params));
 }
 
 window.addEventListener("load", () => {
