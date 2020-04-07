@@ -157,7 +157,7 @@ function showMarkdown(params: {[key: string]: string}, md: string) {
   // `Reveal.initialize()`.
   // This prevents Reveal.js from generating wrong layouts when '?print-pdf' is
   // specified. If these lines are removed, Reveal.js will calculate height of
-  // each page using styles before applying user-specified ones.
+  // each page without user-speficied styles.
   let el = document.createElement("div");
   el.innerHTML = mdbody;
   document.body.appendChild(el);
