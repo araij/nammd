@@ -40,7 +40,7 @@ function getHttp(
     xhr.addEventListener("error", () => reject(xhr));
     xhr.responseType = type;
     xhr.open("GET", url);
-    for (let k in header) {
+    for (const k in header) {
       xhr.setRequestHeader(k, header[k]);
     }
     xhr.send();
@@ -79,7 +79,7 @@ function parseGitHubUrl(url: string): GitHubRepository | null {
     new RegExp("^https://github\.com/([^/]+)/([^/]+)/raw/([^/]+)/(.*)$"),
   ];
 
-  for (let re of res) {
+  for (const re of res) {
     const mat = re.exec(url);
     if (mat.length == 5) {
       return {owner: mat[1], repository: mat[2], commit: mat[3], path: mat[4]};
@@ -153,7 +153,7 @@ function editSlides(params: {[key: string]: string}) {
   document.title = document.getElementsByTagName("h1")[0].innerText;
 
   // Fix 'src' of 'img' elements to relative path from index.html
-  for (let e of document.getElementsByTagName("img") as any) {
+  for (const e of document.getElementsByTagName("img")) {
     getImagePath(e.getAttribute("src"), params)
       .then((url) => e.setAttribute("src", url));
   }
@@ -161,10 +161,8 @@ function editSlides(params: {[key: string]: string}) {
   // Fix URLs in user-specified 'style' tags to relative path from index.html
   // FIXME: Ad-hoc code!!
   const dir = params.slide.substring(0, params.slide.lastIndexOf("/"));
-  const slides: any = document.getElementById("slides").children;
-  for (let slide of slides) {
-    let styles: any = slide.getElementsByTagName("style");
-    for (let style of styles) {
+  for (const slide of document.getElementById("slides").children) {
+    for (const style of slide.getElementsByTagName("style")) {
       const re = /url\(['"](?!http)(.*)['"]\)/g;
       let d = {};
       Promise.all(
