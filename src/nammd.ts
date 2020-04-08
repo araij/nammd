@@ -10,6 +10,11 @@ const defaultOptions = {
   verticalSeparator: "^\r?\n--\r?\n$",
 };
 
+interface Parameter {
+  slide: string;
+  token?: string;
+}
+
 function getRequestParameters(): {[key: string]: string} {
   return location.search.substring(1).split("&").reduce((acc, cur) => {
     const element = cur.split("=");
@@ -130,7 +135,7 @@ function applyOptions(opts: {[key: string]: any}): {[key: string]: any} {
 // Replace a relative path with an absolute URL
 async function getImagePath(
   path: string,
-  params: {[key: string]: string}
+  params: Parameter
 ): Promise<string> {
   if (path.match(/^(https?:)?\/\//)) {
     return path;
@@ -138,7 +143,7 @@ async function getImagePath(
 
   const dir = params.slide.substring(0, params.slide.lastIndexOf("/"));
   // Use a personal access token if it is given
-  if (!("token" in params)) {
+  if (!params.token) {
     return dir + "/" + path;
   }
 
@@ -148,7 +153,7 @@ async function getImagePath(
   return URL.createObjectURL(res);
 }
 
-function editSlides(params: {[key: string]: string}) {
+function editSlides(params: Parameter) {
   // Use the first 'h1' element as a slide title
   document.title = document.getElementsByTagName("h1")[0].innerText;
 
@@ -184,7 +189,10 @@ function editSlides(params: {[key: string]: string}) {
   }
 }
 
-function showMarkdown(params: {[key: string]: string}, md: string) {
+function showMarkdown(params: Parameter, md: string) {
+  // Hide the from
+  document.getElementById("nammd").style.display = "none";
+
   const [fm, mdbody] = separateFrontMatter(md);
   const revealConf = applyOptions({...defaultOptions, ...fm});
   document.getElementById("markdown").innerHTML = mdbody;
@@ -218,34 +226,62 @@ function showMarkdown(params: {[key: string]: string}, md: string) {
   Reveal.addEventListener("ready", _ => editSlides(params));
 }
 
-window.addEventListener("load", () => {
-  let params = getRequestParameters();
-  while (!params.slide) {
-    params.slide = window.prompt(
-        "Input a Markdown URL",
-        "https://araij.github.io/nammd/example/slide1.md");
+function getParameter(): Parameter {
+  const eslide = document.getElementById("input-slide") as HTMLInputElement;
+  const etoken = document.getElementById("input-token") as HTMLInputElement;
+  return {
+      slide: eslide.value as string,
+      token: etoken.value as string,
+  };
+}
+
+function submit() {
+  const p = getParameter();
+  if (!p.slide) {
+    alert("Input the Markdown URL");
+    return;
   }
-  getHttp(params.slide)
-    .then(res => showMarkdown(params, res))
+
+  getHttp(p.slide)
+    .then(res => showMarkdown(p, res))
     .catch(xhr => {
       if (xhr.status != 0) {
         alert(`Failed to get Markdown: ${xhr.status} ${xhr.statusText}.`);
         return;
       }
 
-      const gh = parseGitHubUrl(params.slide);
+      const gh = parseGitHubUrl(p.slide);
       if (gh) {
-        if (!params.token) {
-          params.token = window.prompt("A network error occured. \n"
+        if (!p.token) {
+          alert("A network error occured. "
               + "If the Markdown file is located in a GitHub private "
-              + "repository, retry with a personal access token:");
+              + "repository, retry with a personal access token");
+          return;
         }
-        if (params.token) {
-          getGitHubContents(gh.owner, gh.repository, gh.path, params.token)
-            .then(res => showMarkdown(params, res));
-        }
+        getGitHubContents(gh.owner, gh.repository, gh.path, p.token)
+          .then(res => showMarkdown(p, res));
       }
     });
+}
+
+window.addEventListener("load", () => {
+  document.getElementById("input-slide").addEventListener("keyup", e => {
+    if (e.keyCode === 13) {
+      submit();
+    }
+  });
+
+  document.getElementById("form-token").onsubmit = e => {
+    submit();
+    return false;
+  };
+
+  let params = getRequestParameters();
+  if (params.slide) {
+    const e = document.getElementById("input-slide") as HTMLInputElement;
+    e.value = params.slide;
+    submit();
+  }
 });
 
 // Printing and PDF exports
