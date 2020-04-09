@@ -11,7 +11,7 @@ const defaultOptions = {
 };
 
 interface Parameter {
-  slide: string;
+  url: string;
   token?: string;
 }
 
@@ -141,7 +141,7 @@ async function getImagePath(
     return path;
   }
 
-  const dir = params.slide.substring(0, params.slide.lastIndexOf("/"));
+  const dir = params.url.substring(0, params.url.lastIndexOf("/"));
   // Use a personal access token if it is given
   if (!params.token) {
     return dir + "/" + path;
@@ -165,7 +165,7 @@ function editSlides(params: Parameter) {
 
   // Fix URLs in user-specified 'style' tags to relative path from index.html
   // FIXME: Ad-hoc code!!
-  const dir = params.slide.substring(0, params.slide.lastIndexOf("/"));
+  const dir = params.url.substring(0, params.url.lastIndexOf("/"));
   for (const slide of document.getElementById("slides").children) {
     for (const style of slide.getElementsByTagName("style")) {
       const re = /url\(['"](?!http)(.*)['"]\)/g;
@@ -227,22 +227,22 @@ function showMarkdown(params: Parameter, md: string) {
 }
 
 function getParameter(): Parameter {
-  const eslide = document.getElementById("input-slide") as HTMLInputElement;
+  const eslide = document.getElementById("input-url") as HTMLInputElement;
   const etoken = document.getElementById("input-token") as HTMLInputElement;
   return {
-      slide: eslide.value as string,
+      url: eslide.value as string,
       token: etoken.value as string,
   };
 }
 
 function submit() {
   const p = getParameter();
-  if (!p.slide) {
+  if (!p.url) {
     alert("Input the Markdown URL");
     return;
   }
 
-  getHttp(p.slide)
+  getHttp(p.url)
     .then(res => showMarkdown(p, res))
     .catch(xhr => {
       if (xhr.status != 0) {
@@ -250,7 +250,7 @@ function submit() {
         return;
       }
 
-      const gh = parseGitHubUrl(p.slide);
+      const gh = parseGitHubUrl(p.url);
       if (gh) {
         if (!p.token) {
           alert("A network error occured. "
@@ -265,7 +265,7 @@ function submit() {
 }
 
 window.addEventListener("load", () => {
-  document.getElementById("input-slide").addEventListener("keyup", e => {
+  document.getElementById("input-url").addEventListener("keyup", e => {
     if (e.keyCode === 13) {
       submit();
     }
@@ -277,9 +277,9 @@ window.addEventListener("load", () => {
   };
 
   let params = getRequestParameters();
-  if (params.slide) {
-    const e = document.getElementById("input-slide") as HTMLInputElement;
-    e.value = params.slide;
+  if (params.url) {
+    const e = document.getElementById("input-url") as HTMLInputElement;
+    e.value = params.url;
     submit();
   }
 });
