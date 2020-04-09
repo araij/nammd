@@ -253,9 +253,10 @@ function submit() {
       const gh = parseGitHubUrl(p.url);
       if (gh) {
         if (!p.token) {
-          alert("A network error occured. "
-              + "If the Markdown file is located in a GitHub private "
-              + "repository, retry with a personal access token");
+          (document.getElementById("input-url") as HTMLInputElement).readOnly
+              = true;
+          document.getElementById("button-url").style.display = "none";
+          document.getElementById("form-token").style.display = "block";
           return;
         }
         getGitHubContents(gh.owner, gh.repository, gh.path, p.token)
@@ -265,12 +266,6 @@ function submit() {
 }
 
 window.addEventListener("load", () => {
-  document.getElementById("input-url").addEventListener("keyup", e => {
-    if (e.keyCode === 13) {
-      submit();
-    }
-  });
-
   document.getElementById("form-token").onsubmit = e => {
     submit();
     return false;
