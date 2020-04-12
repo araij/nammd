@@ -258,6 +258,7 @@ function submit(): boolean {
               .then(res => showMarkdown(p, res));
           } else {
             document.getElementById("div-token").style.display = "block";
+            getInput("input-token").focus();
           }
           return;
         }
@@ -270,9 +271,10 @@ function submit(): boolean {
 }
 
 window.addEventListener("load", () => {
+  getInput("input-url").focus();
+
   document.getElementById("form-url").onsubmit = submit;
   document.getElementById("form-token").onsubmit = submit;
-
   getInput("input-token").addEventListener("keyup", e => {
     if (e.keyCode === 13) {  // 13: Enter
       (document.getElementById("form-token") as HTMLFormElement).submit();
