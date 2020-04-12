@@ -226,55 +226,65 @@ function showMarkdown(params: Parameter, md: string) {
   Reveal.addEventListener("ready", _ => editSlides(params));
 }
 
-function getParameter(): Parameter {
-  const eslide = document.getElementById("input-url") as HTMLInputElement;
-  const etoken = document.getElementById("input-token") as HTMLInputElement;
-  return {
-      url: eslide.value as string,
-      token: etoken.value as string,
-  };
+function getInput(id: string): HTMLInputElement {
+  return document.getElementById(id) as HTMLInputElement;
 }
 
-function submit() {
-  const p = getParameter();
-  if (!p.url) {
-    alert("Input the Markdown URL");
-    return;
+function submit(): boolean {
+  const params = getRequestParameters();
+  if (!params['url']) {
+    if (getInput("input-url").value) {
+      // Reload to pass the value of 'input-url' as a request parameter
+      return true;
+    } else {
+      alert("Input a Markdown URL");
+      return false;
+    }
   }
+
+  const p: Parameter = {
+    url: params['url'],
+    token: getInput("input-token").value,
+  };
 
   getHttp(p.url)
     .then(res => showMarkdown(p, res))
     .catch(xhr => {
-      if (xhr.status != 0) {
-        alert(`Failed to get Markdown: ${xhr.status} ${xhr.statusText}.`);
-        return;
-      }
-
-      const gh = parseGitHubUrl(p.url);
-      if (gh) {
-        if (!p.token) {
-          (document.getElementById("input-url") as HTMLInputElement).readOnly
-              = true;
-          document.getElementById("button-url").style.display = "none";
-          document.getElementById("form-token").style.display = "block";
+      if (xhr.status === 0) {
+        const gh = parseGitHubUrl(p.url);
+        if (gh) {
+          if (p.token) {
+            getGitHubContents(gh.owner, gh.repository, gh.path, p.token)
+              .then(res => showMarkdown(p, res));
+          } else {
+            document.getElementById("div-token").style.display = "block";
+          }
           return;
         }
-        getGitHubContents(gh.owner, gh.repository, gh.path, p.token)
-          .then(res => showMarkdown(p, res));
       }
+
+      alert(`Failed to get Markdown: ${xhr.status} ${xhr.statusText}.`);
     });
+
+  return false;
 }
 
 window.addEventListener("load", () => {
-  document.getElementById("form-token").onsubmit = e => {
-    submit();
-    return false;
-  };
+  document.getElementById("form-url").onsubmit = submit;
+  document.getElementById("form-token").onsubmit = submit;
+
+  getInput("input-token").addEventListener("keyup", e => {
+    if (e.keyCode === 13) {  // 13: Enter
+      (document.getElementById("form-token") as HTMLFormElement).submit();
+    }
+  });
 
   let params = getRequestParameters();
   if (params.url) {
-    const e = document.getElementById("input-url") as HTMLInputElement;
+    const e = getInput("input-url");
     e.value = params.url;
+    e.readOnly = true;
+    e.disabled = true;
     submit();
   }
 });

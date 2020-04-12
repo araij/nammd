@@ -11,91 +11,85 @@
     <!-- Theme used for syntax highlighting of code -->
     <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/reveal.js/3.8.0/lib/css/zenburn.min.css">
 
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/4.0.0/github-markdown.min.css">
+
     <script src="nammd.js"></script>
 
     <style>
-      .form-container {
-        width: 100%;
-        text-align: center;
-        position: absolute;
-        z-index: 100;
-        top: 300px;
-        background-color: #dddddd;
-        padding-top: 2em;
-        padding-bottom: 2em;
-        color: #555555;
+      .markdown-body {
+        box-sizing: border-box;
+        min-width: 200px;
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 45px;
       }
 
-      .form-container .title {
-        margin-top: 1.5em;
-        margin-bottom: 1.5em;
-      }
-
-      .form-container h1 {
-        margin-bottom: 0.3em;
-      }
-
-      .form-container p {
-        margin: 0px;
-      }
-
-      .form-container div {
-        margin-top: 1em;
-        margin-bottom: 1em;
-      }
-
-      .form-container input[type="text"] {
+      .markdown-body input[type="text"],
+      .markdown-body input[type="password"],
+      .markdown-body input[type="submit"] {
         font-size: large;
         padding: 0.5em;
-        width: 40em;
-        max-width: 90%;
-        margin-top: 1em;
-        margin-bottom: 1em;
       }
 
-      .form-container input[type="password"] {
-        width: 20em;
+      .markdown-body input[type="text"] {
+        width: 100%;
       }
 
-      .form-container button {
-        padding-left: 2em;
-        padding-right: 2em;
-        padding-top: 0.5em;
-        padding-bottom: 0.5em;
+      .markdown-body input[type="password"] {
+        width: 70%;
+      }
+
+      .markdown-body input[type="submit"] {
+        width: 10em;
+      }
+
+      .markdown-body #div-token {
+        width: 100%;
+      }
+
+      .markdown-body .hidden {
+        display: none;
       }
     </style>
   </head>
 
   <body>
-    <div id="nammd" class="form-container">
+    <div id="nammd" class="markdown-body">
       <h1>NamMD</h1>
-      <p>Make presentation slides in Markdown</p>
+      <p>
+        Show Markdown as slides.
+      </p>
 
-      <form action="/">
-        <input
-            type="text"
-            id="input-url"
-            name="url"
-            placeholder="Markdown URL (e.g., https://araij.github.io/nammd/example/slide1.md)">
-        <div>
-          <button id="button-url" type="submit">Open</button>
-        </div>
-      </form>
+      <h2>Markdown URL</h2>
+      <p>
+        <form id="form-url" action="/">
+          <input id="input-url" type="text" name="url" placeholder="https://">
+        </form>
+      </p>
+      <p>
+        E.g., https://github.com/araij/nammd/blob/master/docs/example/slide1.md
+      </p>
 
-      <form action="/" id="form-token" style="display: none">
-        <p style="color: red; font-weight: bold;">
-          Provide your <a href="https://github.com/settings/tokens">personal
-          access token</a>.
+      <div id="div-token" class="hidden">
+        <h3>GitHub personal access token</h3>
+        <p>
+          <form id="form-token">
+            <input class="hidden" type="text" value="NamMD/GitHub" readonly
+                autocomplete="username">
+            <input id="input-token" type="password" name="token"
+                autocomplete="current-password">
+          </form>
         </p>
-        <p style="color: red">
-          The specified file seems located in a GitHub private repository.
-          If it is public, check your Internet connection.
+        <p>
+          Provide your token to access private repositories.
+          If you are speficying a public repository, check your Internet
+          connection.
         </p>
-        <input type="password" id="input-token" name="token" maxlength="40">
-        <div>
-          <button type="submit">Open</button>
-        </div>
-      </form>
+      </div>
+
+      <p>
+        <input id="button-url" form="form-url" type="submit" value="Open">
+      </p>
     </div>
 
     <div class="reveal">
