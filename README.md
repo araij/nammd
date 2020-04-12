@@ -10,7 +10,9 @@ Users can specify Markdown files in not only publicly-accessible online location
 
 # About NamMD
 
-NamMD is a project forked from [yamap55/SlideWithGitHubPages](https://github.com/yamap55/SlideWithGitHubPages).
+NamMD is a project forked from [SlideWithGitHubPages](https://github.com/yamap55/SlideWithGitHubPages).
+
+NamMD uses [github\-markdown\-css](https://github.com/sindresorhus/github-markdown-css) and modules listed in [docs/licenses.txt](docs/licenses.txt).
 
 The name of NamMD means 'Nam (南無 or Namo) Markdown' and 'Not Any More Mandalas (曼荼羅)'.
 Both nam and mandara are Buddhist terms.
