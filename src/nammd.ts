@@ -53,15 +53,14 @@ function getHttp(
 }
 
 function getGitHubContents(
-  owner: string,
-  repo: string,
-  path: string,
+  g: GitHubRepository,
   token: string,
   type: XMLHttpRequestResponseType = "text",
 ): Promise<any> {
   // https://stackoverflow.com/a/42724593
   return getHttp(
-    `https://api.github.com/repos/${owner}/${repo}/contents/${path}`,
+    `https://api.github.com/repos/`
+        + `${g.owner}/${g.repository}/contents/${g.path}?ref=${g.commit}`,
     {
       type: type,
       header: {
@@ -154,9 +153,9 @@ async function getImagePath(
     return dir + "/" + path;
   }
 
-  const g = parseGitHubUrl(dir);
-  const res = await getGitHubContents(
-      g.owner, g.repository, `${g.path}/${path}`, params.token, "blob");
+  let g = parseGitHubUrl(dir);
+  g.path = `${g.path}/${path}`;
+  const res = await getGitHubContents(g, params.token, "blob");
   return URL.createObjectURL(res);
 }
 
@@ -268,7 +267,7 @@ function submit(): boolean {
       }
       // The given URL could be a private repository.
       if (p.token) {
-        getGitHubContents(gh.owner, gh.repository, gh.path, p.token)
+        getGitHubContents(gh, p.token)
           .then(res => showMarkdown(p, res))
           .catch(xhr => showNotFoundError(xhr));
       } else {
