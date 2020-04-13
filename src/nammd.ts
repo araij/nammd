@@ -86,7 +86,7 @@ function parseGitHubUrl(url: string): GitHubRepository | null {
 
   for (const re of res) {
     const mat = re.exec(url);
-    if (mat.length == 5) {
+    if (mat && mat.length == 5) {
       return {owner: mat[1], repository: mat[2], commit: mat[3], path: mat[4]};
     }
   }
