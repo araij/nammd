@@ -95,6 +95,11 @@ function parseGitHubUrl(url: string): GitHubRepository | null {
   return null;
 }
 
+function makeGitHubUserContentUrl(gh: GitHubRepository): string {
+  return "https://raw.githubusercontent.com/"
+      + `${gh.owner}/${gh.repository}/${gh.commit}/${gh.path}`;
+}
+
 function separateFrontMatter(
   str: string,
 ): [{[key: string]: string}, string] {
@@ -232,6 +237,10 @@ function getInput(id: string): HTMLInputElement {
   return document.getElementById(id) as HTMLInputElement;
 }
 
+function showNotFoundError(xhr: XMLHttpRequest) {
+  alert(`Failed to get Markdown: ${xhr.status} ${xhr.statusText}.`);
+}
+
 function submit(): boolean {
   const params = getRequestParameters();
   if (!params['url']) {
@@ -244,29 +253,28 @@ function submit(): boolean {
     }
   }
 
+  const gh = parseGitHubUrl(params['url']);
   const p: Parameter = {
-    url: params['url'],
+    url: gh ? makeGitHubUserContentUrl(gh) : params['url'],
     token: getInput("input-token").value,
   };
 
   getHttp(p.url)
     .then(res => showMarkdown(p, res))
     .catch(xhr => {
-      if (xhr.status === 0) {
-        const gh = parseGitHubUrl(p.url);
-        if (gh) {
-          if (p.token) {
-            getGitHubContents(gh.owner, gh.repository, gh.path, p.token)
-              .then(res => showMarkdown(p, res));
-          } else {
-            document.getElementById("div-token").style.display = "block";
-            getInput("input-token").focus();
-          }
-          return;
-        }
+      if (!gh || xhr.status !== 404) {
+        showNotFoundError(xhr);
+        return;
       }
-
-      alert(`Failed to get Markdown: ${xhr.status} ${xhr.statusText}.`);
+      // The given URL could be a private repository.
+      if (p.token) {
+        getGitHubContents(gh.owner, gh.repository, gh.path, p.token)
+          .then(res => showMarkdown(p, res))
+          .catch(xhr => showNotFoundError(xhr));
+      } else {
+        document.getElementById("div-token").style.display = "block";
+        getInput("input-token").focus();
+      }
     });
 
   return false;
