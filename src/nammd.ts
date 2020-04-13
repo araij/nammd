@@ -82,6 +82,8 @@ function parseGitHubUrl(url: string): GitHubRepository | null {
   const res = [
     new RegExp("^https://github\.com/([^/]+)/([^/]+)/blob/([^/]+)/(.*)$"),
     new RegExp("^https://github\.com/([^/]+)/([^/]+)/raw/([^/]+)/(.*)$"),
+    new RegExp(
+        "^https://raw\.githubusercontent\.com/([^/]+)/([^/]+)/([^/]+)/(.*)$"),
   ];
 
   for (const re of res) {
