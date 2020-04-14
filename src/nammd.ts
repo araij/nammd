@@ -70,6 +70,30 @@ function getGitHubContents(
     });
 }
 
+function getWebContents(
+  url: string,
+  {
+    gitHubToken = null,
+    type = "text",
+    header = {},
+  }: {
+    gitHubToken?: string,
+    type?: XMLHttpRequestResponseType,
+    header?: {[key: string]: string};
+  }
+): Promise<string> {
+  return getHttp(url, {type: type, header: header})
+    .catch(xhr => {
+      if (xhr.status === 404 && gitHubToken) {
+        const g = parseGitHubUrl(url);
+        if (g) {
+          return getGitHubContents(g, gitHubToken, type)
+        }
+      }
+      throw xhr;
+    });
+}
+
 interface GitHubRepository {
   owner: string,
   repository: string,
@@ -138,61 +162,120 @@ function applyOptions(opts: {[key: string]: any}): {[key: string]: any} {
   return opts;
 }
 
+function isAbsoluteUrl(url: string) {
+  return url.match(/^(https?:)?\/\//);
+}
+
 // Replace a relative path with an absolute URL
 async function getImagePath(
   path: string,
   params: Parameter
 ): Promise<string> {
-  if (path.match(/^(https?:)?\/\//)) {
-    return path;
+  if (!isAbsoluteUrl(path)) {
+    path = toAbsoluteUrl(path, getDirectory(params.url));
   }
 
-  const dir = params.url.substring(0, params.url.lastIndexOf("/"));
-  // Use a personal access token if it is given
-  if (!params.token) {
-    return dir + "/" + path;
+  if (params.token) {
+    const g = parseGitHubUrl(path);
+    if (g) {
+      const res = await getGitHubContents(g, params.token, "blob");
+      return URL.createObjectURL(res);
+    }
   }
-
-  let g = parseGitHubUrl(dir);
-  g.path = `${g.path}/${path}`;
-  const res = await getGitHubContents(g, params.token, "blob");
-  return URL.createObjectURL(res);
+  return path;
 }
 
-function editSlides(params: Parameter) {
+// FIXME: define non-promise overload
+//   (css: string, f: (url: string) => string) => string
+function replaceCssUrls(
+  css: string,
+  f: (url: string) => Promise<string>
+): Promise<string> {
+  // FIXME: sophisticate the regex to handle line breaks and long one-liner
+  const cssUrl = /url\(['"](.*)['"]\)/g;
+  const urls = new Set(
+    Array.from(css.matchAll(cssUrl))
+      .flatMap(m => m.length == 2 ? [m[1]] : []));
+
+  return Promise.all(
+    Array.from(urls).map(orig => f(orig).then(conv => [orig, conv]))
+  ).then(pairs => {
+    const d = pairs.reduce((acc, [k, v]) => ({...acc, [k]: v}), {});
+    return css.replace(cssUrl, (_, p1: string) => `url('${d[p1]}')`);
+  });
+}
+
+function getDirectory(path: string): string {
+  return path.substring(0, path.lastIndexOf("/"));
+}
+
+function toAbsoluteUrl(url: string, base: string): string {
+  // FIXME: remove redundancy in the path (e.g., "a/b/../../")
+  if (isAbsoluteUrl(url)) {
+    return url;
+  } else if (base.endsWith("/")) {
+    return base + url;
+  } else {
+    return base + "/" + url;
+  }
+}
+
+function toRelativeUrl(url: string, base: string): string {
+  if (!base.endsWith("/")) {
+    base += "/";
+  }
+  return url.startsWith(base) ? url.substr(base.length) : url;
+}
+
+// Return Promise to notify the completion of CSS embedding
+async function embedLinkedCsses(p: Parameter) {
+  return Promise.all(
+    Array.from(document.getElementById("slides").querySelectorAll("link"))
+      .filter(e => e.rel === "stylesheet")
+      .map(async e => {
+        // Chrome seems to automatically replace `e.href` to an absolute URL.
+        // Thus, we make the relative path and then re-make the absolute path.
+        const cssurl = toAbsoluteUrl(
+          toRelativeUrl(e.href, getDirectory(location.href)),
+          getDirectory(p.url));
+        return getWebContents(cssurl, {gitHubToken: p.token})
+          .then(resp =>
+            replaceCssUrls(resp, url =>
+              Promise.resolve(toAbsoluteUrl(url, getDirectory(cssurl)))))
+          .then(css => {
+            e.insertAdjacentHTML("afterend", `<style>\n${css}\n</style>`);
+            e.remove();
+          })
+          .catch(err => {
+            console.log(`Failed to get ${cssurl} (${e.href}):`, err);
+          });
+      }))
+    .then(_ => { /* return void */ });
+}
+
+function fixLocationsInTags(p: Parameter) {
+  const dir = p.url.substring(0, p.url.lastIndexOf("/"));
+
+  for (const slide of document.getElementById("slides").children) {
+    // Fix 'src' of 'img' elements to relative path from index.html
+    for (const e of slide.getElementsByTagName("img")) {
+      getImagePath(e.getAttribute("src"), p)
+        .then(url => e.setAttribute("src", url));
+    }
+
+    for (const e of slide.getElementsByTagName("style")) {
+      replaceCssUrls(e.innerHTML, url => getImagePath(url, p))
+        .then(css => e.innerHTML = css);
+    }
+  }
+}
+
+async function editSlides(p: Parameter) {
   // Use the first 'h1' element as a slide title
   document.title = document.getElementsByTagName("h1")[0].innerText;
 
-  // Fix 'src' of 'img' elements to relative path from index.html
-  for (const e of document.getElementsByTagName("img")) {
-    getImagePath(e.getAttribute("src"), params)
-      .then(url => e.setAttribute("src", url));
-  }
-
-  // Fix URLs in user-specified 'style' tags to relative path from index.html
-  // FIXME: Ad-hoc code!!
-  const dir = params.url.substring(0, params.url.lastIndexOf("/"));
-  for (const slide of document.getElementById("slides").children) {
-    for (const style of slide.getElementsByTagName("style")) {
-      const re = /url\(['"](?!http)(.*)['"]\)/g;
-      let d = {};
-      Promise.all(
-        Array.from(style.innerHTML.matchAll(re))
-          .filter(m => m.length >= 2)
-          .map(m => getImagePath(m[1], params).then(url => { d[m[1]] = url; }))
-      ).then(() => {
-        style.innerHTML = style.innerHTML.replace(
-            re,
-            (_, p1: string) => {
-              if (d[p1].startsWith("blob:")) {
-                return `url('${d[p1]}')`;
-              } else {
-                return `url('${dir}/${d[p1]}')`;
-              }
-            });
-      });
-    }
-  }
+  await embedLinkedCsses(p);
+  fixLocationsInTags(p);
 }
 
 function showMarkdown(params: Parameter, md: string) {
