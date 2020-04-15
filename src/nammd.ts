@@ -2,6 +2,25 @@ import * as jsyaml from 'js-yaml';
 
 declare var Reveal: any;
 
+interface Request {
+  url: string;
+  token?: string;
+}
+
+interface GitHubLocation {
+  owner: string,
+  repository: string,
+  commit: string,
+  path: string,
+}
+
+class NoGitHubTokenError extends Error {
+  constructor() {
+    super();
+    Object.setPrototypeOf(this, NoGitHubTokenError.prototype);
+  }
+}
+
 const revealCdn = "//cdnjs.cloudflare.com/ajax/libs/reveal.js/3.8.0/";
 
 const defaultOptions = {
@@ -10,19 +29,45 @@ const defaultOptions = {
   verticalSeparator: "^\r?\n--\r?\n$",
 };
 
-interface Parameter {
-  url: string;
-  token?: string;
+// FIXME: sophisticate the regex to allow line breaks in the url function and
+// multiple attributes in a single line
+const cssUrl = /url\(['"](.*)['"]\)/g;
+
+function isAbsoluteUrl(url: string): boolean {
+  return /^(https?:)?\/\//.test(url);
 }
 
-function getRequestParameters(): {[key: string]: string} {
-  return location.search.substring(1).split("&").reduce((acc, cur) => {
-    const element = cur.split("=");
-    acc[decodeURIComponent(element[0])] = decodeURIComponent(element[1]);
-    return acc;
-  }, {});
+function toAbsoluteUrl(url: string, base: string): string {
+  return new URL(url, base).href;
+}
+
+function toRelativeUrl(url: string, base: string): string | null {
+  if (url.startsWith(base)) {
+    // Add a length for "/" if `base` does not include it at the end
+    return url.substr(base.endsWith("/") ? base.length : base.length + 1);
+  } else {
+    return null;
+  }
+}
+
+function getDirectory(path: string): string {
+  // Return "" if `path` does not contain "/" because `path.lastIndexOf("/")`
+  // returns -1 in that case and thus `path.lastIndexOf("/") + 1 === 0`
+  return path.substring(0, path.lastIndexOf("/") + 1);
+}
+
+function getQueryParameters(): {[key: string]: string} {
+  return location
+    .search
+    .substring(1)
+    .split("&")
+    .map(x => x.split("="))
+    .reduce((a, [k, v]) => ({...a, [k]: decodeURIComponent(v)}), {});
 };
 
+//
+// Make a simple HTTP GET request.
+//
 function getHttp(
   url: string,
   {
@@ -34,15 +79,15 @@ function getHttp(
   } = {},
 ): Promise<any> {
   return new Promise((resolve, reject) => {
-    let xhr = new XMLHttpRequest();
-    xhr.addEventListener("load", () => {
+    const xhr = new XMLHttpRequest();
+    xhr.addEventListener("load", _ => {
       if (200 <= xhr.status && xhr.status < 300) {
         resolve(xhr.response);
       } else {
         reject(xhr);
       }
     });
-    xhr.addEventListener("error", () => reject(xhr));
+    xhr.addEventListener("error", _ => reject(xhr));
     xhr.responseType = type;
     xhr.open("GET", url);
     for (const k in header) {
@@ -52,25 +97,38 @@ function getHttp(
   });
 }
 
-function getGitHubContents(
-  g: GitHubRepository,
+//
+// Make a GitHub API request to access GitHub private repositories.
+//
+function getGitHubPrivate(
+  g: GitHubLocation,
   token: string,
-  type: XMLHttpRequestResponseType = "text",
+  {
+    type = "text",
+    header = {},
+  }: {
+    type?: XMLHttpRequestResponseType;
+    header?: {[key: string]: string};
+  } = {},
 ): Promise<any> {
-  // https://stackoverflow.com/a/42724593
   return getHttp(
-    `https://api.github.com/repos/`
-        + `${g.owner}/${g.repository}/contents/${g.path}?ref=${g.commit}`,
+    "https://api.github.com/repos/"
+      + `${g.owner}/${g.repository}/contents/${g.path}?ref=${g.commit}`,
     {
       type: type,
       header: {
+        ...header,
         Authorization: `token ${token}`,
         Accept: "application/vnd.github.v3.raw",
       },
     });
 }
 
-function getWebContents(
+//
+// If a direct HTTP GET request failed, this function automatically retries via
+// a GitHub API request.
+//
+async function getContent(
   url: string,
   {
     gitHubToken = null,
@@ -81,70 +139,71 @@ function getWebContents(
     type?: XMLHttpRequestResponseType,
     header?: {[key: string]: string};
   }
-): Promise<string> {
-  return getHttp(url, {type: type, header: header})
-    .catch(xhr => {
-      if (xhr.status === 404 && gitHubToken) {
-        const g = parseGitHubUrl(url);
-        if (g) {
-          return getGitHubContents(g, gitHubToken, type)
-        }
+): Promise<any> {
+  try {
+    const res = await getHttp(url, {type: type, header: header});
+  } catch (e) {
+    if (e instanceof XMLHttpRequest && e.status === 404 && gitHubToken) {
+      const g = parseGitHubUrl(url);
+      if (g) {
+        return getGitHubPrivate(g, gitHubToken, {type: type})
       }
-      throw xhr;
-    });
+    }
+    throw e;
+  }
 }
 
-interface GitHubRepository {
-  owner: string,
-  repository: string,
-  commit: string,
-  path: string,
-}
-
-function parseGitHubUrl(url: string): GitHubRepository | null {
+function parseGitHubUrl(url: string): GitHubLocation | null {
   const res = [
-    new RegExp("^https://github\.com/([^/]+)/([^/]+)/blob/([^/]+)/(.*)$"),
-    new RegExp("^https://github\.com/([^/]+)/([^/]+)/raw/([^/]+)/(.*)$"),
     new RegExp(
         "^https://raw\.githubusercontent\.com/([^/]+)/([^/]+)/([^/]+)/(.*)$"),
+    new RegExp("^https://github\.com/([^/]+)/([^/]+)/blob/([^/]+)/(.*)$"),
+    new RegExp("^https://github\.com/([^/]+)/([^/]+)/raw/([^/]+)/(.*)$"),
   ];
 
   for (const re of res) {
-    const mat = re.exec(url);
-    if (mat && mat.length == 5) {
-      return {owner: mat[1], repository: mat[2], commit: mat[3], path: mat[4]};
+    const m = re.exec(url);
+    if (m && m.length == 5) {
+      return {owner: m[1], repository: m[2], commit: m[3], path: m[4]};
     }
   }
   return null;
 }
 
-function makeGitHubUserContentUrl(gh: GitHubRepository): string {
+function makeGitHubUserContentUrl(g: GitHubLocation): string {
   return "https://raw.githubusercontent.com/"
-      + `${gh.owner}/${gh.repository}/${gh.commit}/${gh.path}`;
+    + `${g.owner}/${g.repository}/${g.commit}/${g.path}`;
 }
 
-function separateFrontMatter(
-  str: string,
-): [{[key: string]: string}, string] {
+//
+// Return a pair of the frontmatter dictionary and the string after the
+// frontmatter.
+//
+function separateFrontmatter(s: string): [any, string] {
   const re = /\s*^---\s*$(.*?)^---\s*$(.*)/ms;
   // Since /^/m matches the beginning of each line, we check if the regex
   // matches the beginning of the whole string.
-  if (str.search(re) == 0) {
-    const mat = re.exec(str);
-    if (mat && mat.length == 3) {
-      return [jsyaml.load(mat[1]), mat[2]];
+  if (s.search(re) === 0) {
+    const m = re.exec(s);
+    if (m && m.length == 3) {
+      return [jsyaml.safeLoad(m[1]), m[2]];
     }
   }
-  return [{}, str];
+  return [{}, s];
 }
 
+//
+// Apply slide options that `Reveal.initialize()` does not handle, such as
+// "theme" and "separator".
+// Return the options not applied in this function.
+//
 function applyOptions(opts: {[key: string]: any}): {[key: string]: any} {
   if (opts.theme) {
-    let link = document.createElement("link");
-    link.rel = "stylesheet";
-    link.type = "text/css";
-    link.href = revealCdn + "css/theme/" + opts.theme + ".min.css";
-    document.getElementsByTagName("head")[0].appendChild(link);
+    let e = document.createElement("link");
+    e.rel = "stylesheet";
+    e.type = "text/css";
+    e.href = revealCdn + "css/theme/" + opts.theme + ".min.css";
+    document.getElementsByTagName("head")[0].appendChild(e);
   }
   delete opts.theme;
 
@@ -162,74 +221,68 @@ function applyOptions(opts: {[key: string]: any}): {[key: string]: any} {
   return opts;
 }
 
-function isAbsoluteUrl(url: string) {
-  return url.match(/^(https?:)?\/\//);
-}
-
-// Replace a relative path with an absolute URL
-async function getImagePath(
-  path: string,
-  params: Parameter
-): Promise<string> {
+//
+// If the given URL points a Blob object in GitHub private repositories, this
+// function downloads the object and returns its object URL. Otherwise, this
+// function just returns the given URL.
+//
+// FIXME: This function unnecessarily converts all the paths to an absolute
+// path.
+//
+async function getBlobUrl(path: string, r: Request): Promise<string> {
   if (!isAbsoluteUrl(path)) {
-    path = toAbsoluteUrl(path, getDirectory(params.url));
+    path = toAbsoluteUrl(path, getDirectory(r.url));
   }
 
-  if (params.token) {
+  if (r.token) {
     const g = parseGitHubUrl(path);
     if (g) {
-      const res = await getGitHubContents(g, params.token, "blob");
-      return URL.createObjectURL(res);
+      const b = await getGitHubPrivate(g, r.token, {type: "blob"});
+      return URL.createObjectURL(b);
     }
   }
   return path;
 }
 
-// FIXME: define non-promise overload
-//   (css: string, f: (url: string) => string) => string
+//
+// Replace an argument of all the `url()` function in the CSS.
+// The replacer function is called for each argument.
+//
 function replaceCssUrls(
+  css: string,
+  f: (url: string) => string
+): string {
+  return css.replace(cssUrl, (_, p1: string) => `url('${f(p1)}')`);
+}
+
+//
+// `replaceCssUrls` for async replacer functions.
+//
+// As far as I understand, TypeScript does not allow function overloading for
+// difference in function-type arguments because we cannot determine the return
+// type of arguments.
+//
+async function replaceCssUrlsAsync(
   css: string,
   f: (url: string) => Promise<string>
 ): Promise<string> {
-  // FIXME: sophisticate the regex to handle line breaks and long one-liner
-  const cssUrl = /url\(['"](.*)['"]\)/g;
+  // Remove the duplicate URLs
   const urls = new Set(
     Array.from(css.matchAll(cssUrl))
       .flatMap(m => m.length == 2 ? [m[1]] : []));
-
-  return Promise.all(
-    Array.from(urls).map(orig => f(orig).then(conv => [orig, conv]))
-  ).then(pairs => {
-    const d = pairs.reduce((acc, [k, v]) => ({...acc, [k]: v}), {});
-    return css.replace(cssUrl, (_, p1: string) => `url('${d[p1]}')`);
-  });
+  // Evaluate all the promises concurrently.
+  const pairs = await Promise.all(
+    Array.from(urls).map(async url => [url, await f(url)]));
+  // Make a dictionary of replacements for fast lookup.
+  const d = pairs.reduce((a, [k, v]) => ({...a, [k]: v}), {});
+  return replaceCssUrls(css, url => d[url]);
 }
 
-function getDirectory(path: string): string {
-  return path.substring(0, path.lastIndexOf("/"));
-}
-
-function toAbsoluteUrl(url: string, base: string): string {
-  // FIXME: remove redundancy in the path (e.g., "a/b/../../")
-  if (isAbsoluteUrl(url)) {
-    return url;
-  } else if (base.endsWith("/")) {
-    return base + url;
-  } else {
-    return base + "/" + url;
-  }
-}
-
-function toRelativeUrl(url: string, base: string): string {
-  if (!base.endsWith("/")) {
-    base += "/";
-  }
-  return url.startsWith(base) ? url.substr(base.length) : url;
-}
-
+//
 // Return Promise to notify the completion of CSS embedding
-async function embedLinkedCsses(p: Parameter) {
-  return Promise.all(
+//
+async function embedLinkedCsses(r: Request): Promise<void> {
+  await Promise.all(
     Array.from(document.getElementById("slides").querySelectorAll("link"))
       .filter(e => e.rel === "stylesheet")
       .map(async e => {
@@ -237,52 +290,55 @@ async function embedLinkedCsses(p: Parameter) {
         // Thus, we make the relative path and then re-make the absolute path.
         const cssurl = toAbsoluteUrl(
           toRelativeUrl(e.href, getDirectory(location.href)),
-          getDirectory(p.url));
-        return getWebContents(cssurl, {gitHubToken: p.token})
-          .then(resp =>
-            replaceCssUrls(resp, url =>
-              Promise.resolve(toAbsoluteUrl(url, getDirectory(cssurl)))))
-          .then(css => {
-            e.insertAdjacentHTML("afterend", `<style>\n${css}\n</style>`);
-            e.remove();
-          })
-          .catch(err => {
-            console.log(`Failed to get ${cssurl} (${e.href}):`, err);
-          });
-      }))
-    .then(_ => { /* return void */ });
+          getDirectory(r.url));
+        try {
+          const css = replaceCssUrls(
+            await getContent(cssurl, {gitHubToken: r.token}),
+            url => toAbsoluteUrl(url, getDirectory(cssurl)));
+          e.insertAdjacentHTML("afterend", `<style>\n${css}\n</style>`);
+          e.remove();
+        } catch (err) {
+          console.log(`Failed to get ${cssurl} (${e.href}):`, err);
+        }
+      }));
 }
 
-function fixLocationsInTags(p: Parameter) {
-  const dir = p.url.substring(0, p.url.lastIndexOf("/"));
+async function fixLocationsInTags(r: Request) {
+  let ps = [];
 
   for (const slide of document.getElementById("slides").children) {
-    // Fix 'src' of 'img' elements to relative path from index.html
     for (const e of slide.getElementsByTagName("img")) {
-      getImagePath(e.getAttribute("src"), p)
-        .then(url => e.setAttribute("src", url));
+      ps.push(
+        getBlobUrl(e.getAttribute("src"), r)
+          .then(url => e.setAttribute("src", url)));
     }
-
     for (const e of slide.getElementsByTagName("style")) {
-      replaceCssUrls(e.innerHTML, url => getImagePath(url, p))
-        .then(css => e.innerHTML = css);
+      ps.push(
+        replaceCssUrlsAsync(e.innerHTML, url => getBlobUrl(url, r))
+          .then(css => e.innerHTML = css));
     }
   }
+
+  await Promise.all(ps);
 }
 
-async function editSlides(p: Parameter) {
+async function editSlides(r: Request) {
   // Use the first 'h1' element as a slide title
   document.title = document.getElementsByTagName("h1")[0].innerText;
 
-  await embedLinkedCsses(p);
-  fixLocationsInTags(p);
+  await embedLinkedCsses(r);
+  await fixLocationsInTags(r);
 }
 
-function showMarkdown(params: Parameter, md: string) {
-  // Hide the from
-  document.getElementById("nammd").style.display = "none";
+function applyCss(md: string) {
+  let el = document.createElement("div");
+  el.innerHTML = md;
+  document.body.appendChild(el);
+  el.remove();
+}
 
-  const [fm, mdbody] = separateFrontMatter(md);
+function showMarkdown(r: Request, md: string) {
+  const [fm, mdbody] = separateFrontmatter(md);
   const revealConf = applyOptions({...defaultOptions, ...fm});
   document.getElementById("markdown").innerHTML = mdbody;
 
@@ -291,10 +347,7 @@ function showMarkdown(params: Parameter, md: string) {
   // This prevents Reveal.js from generating wrong layouts when '?print-pdf' is
   // specified. If these lines are removed, Reveal.js will calculate height of
   // each page without user-speficied styles.
-  let el = document.createElement("div");
-  el.innerHTML = mdbody;
-  document.body.appendChild(el);
-  el.remove();
+  applyCss(mdbody);
 
   Reveal.initialize({
     dependencies: [
@@ -312,20 +365,34 @@ function showMarkdown(params: Parameter, md: string) {
     ...revealConf
   }, false);
 
-  Reveal.addEventListener("ready", _ => editSlides(params));
+  Reveal.addEventListener("ready", _ => editSlides(r));
 }
 
 function getInput(id: string): HTMLInputElement {
   return document.getElementById(id) as HTMLInputElement;
 }
 
-function showNotFoundError(xhr: XMLHttpRequest) {
-  alert(`Failed to get Markdown: ${xhr.status} ${xhr.statusText}.`);
+async function getMarkdown(r: Request): Promise<string> {
+  const g = parseGitHubUrl(r.url);
+  try {
+    return await getHttp(r.url);
+  } catch (err) {
+    if (!(err instanceof XMLHttpRequest) || !g || err.status !== 404) {
+      throw err;
+    }
+    // The given URL could be a private repository.
+    if (r.token) {
+      // The caller function handles errors thrown by `getGitHubPrivate()`.
+      return await getGitHubPrivate(g, r.token);
+    } else {
+      throw new NoGitHubTokenError();
+    }
+  }
 }
 
 function submit(): boolean {
-  const params = getRequestParameters();
-  if (!params['url']) {
+  const p = getQueryParameters();
+  if (!p['url']) {
     if (getInput("input-url").value) {
       // Reload to pass the value of 'input-url' as a request parameter
       return true;
@@ -335,34 +402,36 @@ function submit(): boolean {
     }
   }
 
-  const gh = parseGitHubUrl(params['url']);
-  const p: Parameter = {
-    url: gh ? makeGitHubUserContentUrl(gh) : params['url'],
+  const g = parseGitHubUrl(p['url']);
+  const r: Request = {
+    url: g ? makeGitHubUserContentUrl(g) : p['url'],
     token: getInput("input-token").value,
   };
 
-  getHttp(p.url)
-    .then(res => showMarkdown(p, res))
-    .catch(xhr => {
-      if (!gh || xhr.status !== 404) {
-        showNotFoundError(xhr);
-        return;
-      }
-      // The given URL could be a private repository.
-      if (p.token) {
-        getGitHubContents(gh, p.token)
-          .then(res => showMarkdown(p, res))
-          .catch(xhr => showNotFoundError(xhr));
-      } else {
+  // This function cannot be async because it is a handler for the 'submit'
+  // event.
+  getMarkdown(r)
+    .then(md => {
+      // Hide the NamMD from
+      document.getElementById("nammd").style.display = "none";
+      showMarkdown(r, md);
+    })
+    .catch(err => {
+      if (err instanceof NoGitHubTokenError) {
+        // Ask the user to input the token
         document.getElementById("div-token").style.display = "block";
         getInput("input-token").focus();
+      } else if (err instanceof XMLHttpRequest) {
+        alert(`Failed to get Markdown: ${err.status} ${err.statusText}.`);
+      } else {
+        alert(`Failed to get Markdown: ${err}.`);
       }
     });
 
   return false;
 }
 
-window.addEventListener("load", () => {
+window.addEventListener("load", _ => {
   getInput("input-url").focus();
 
   // Multiple ways to call `submit()`
@@ -374,10 +443,10 @@ window.addEventListener("load", () => {
     }
   });
 
-  let params = getRequestParameters();
-  if (params.url) {
+  let p = getQueryParameters();
+  if (p["url"]) {
     const e = getInput("input-url");
-    e.value = params.url;
+    e.value = p["url"];
     e.readOnly = true;
     e.disabled = true;
     submit();
