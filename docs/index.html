@@ -1,105 +1,17 @@
 <!-- vim: set expandtab shiftwidth=2 -->
+<!-- https://opensource.com/article/19/7/permanently-redirect-github-pages -->
 <!doctype html>
 <html>
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-
-    <title>NamMD</title>
-
-    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/reveal.js/3.8.0/css/reveal.css">
-    <!-- Theme used for syntax highlighting of code -->
-    <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/reveal.js/3.8.0/lib/css/zenburn.min.css">
-
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/github-markdown-css/4.0.0/github-markdown.min.css">
-
-    <script src="nammd.js"></script>
-
-    <style>
-      .markdown-body {
-        box-sizing: border-box;
-        min-width: 200px;
-        max-width: 980px;
-        margin: 0 auto;
-        padding: 45px;
-      }
-
-      .markdown-body input[type="text"],
-      .markdown-body input[type="password"],
-      .markdown-body input[type="submit"] {
-        font-size: large;
-        padding: 0.5em;
-      }
-
-      .markdown-body input[type="text"] {
-        width: 100%;
-      }
-
-      .markdown-body input[type="password"] {
-        width: 70%;
-      }
-
-      .markdown-body input[type="submit"] {
-        width: 10em;
-      }
-
-      .markdown-body #div-token {
-        width: 100%;
-      }
-
-      .markdown-body .hidden {
-        display: none;
-      }
-    </style>
+    <meta http-equiv="refresh"
+      content="0;url=https://araij.github.com/nammd/v1/" />
+    <link rel="canonical" href="https://araij.github.com/nammd/v1/" />
   </head>
-
   <body>
-    <div id="nammd" class="markdown-body">
-      <h1><a href="https://araij.github.io/nammd/">NamMD</a></h1>
-      <p>
-        Show Markdown as slides.
-      </p>
-
-      <h2>Markdown URL</h2>
-      <p>
-        <form id="form-url" action=".">
-          <input id="input-url" type="text" name="url" placeholder="https://">
-        </form>
-      </p>
-      <p>
-        E.g., https://github.com/araij/nammd/blob/master/docs/example/slide1.md
-      </p>
-
-      <div id="div-token" class="hidden">
-        <h3>GitHub personal access token</h3>
-        <p>
-          <form id="form-token">
-            <input class="hidden" type="text" value="NamMD/GitHub" readonly
-                autocomplete="username">
-            <input id="input-token" type="password" name="token"
-                autocomplete="current-password">
-          </form>
-        </p>
-        <p>
-          Provide your token to access private repositories.
-          If you are speficying a public repository, check your Internet
-          connection.
-        </p>
-      </div>
-
-      <p>
-        <input id="button-url" form="form-url" type="submit" value="Open">
-      </p>
-    </div>
-
-    <div class="reveal">
-      <div class="slides" id="slides">
-        <section data-markdown id="slide">
-          <script type="text/template" id="markdown">
-          </script>
-        </section>
-      </div>
-    </div>
-    <script src="//cdnjs.cloudflare.com/ajax/libs/reveal.js/3.8.0/js/reveal.min.js"></script>
+    Redirecting to
+    <a href="https://araij.github.com/nammd/v1/">
+      https://araij.github.com/nammd/v1/
+    </a>.
   </body>
 </html>

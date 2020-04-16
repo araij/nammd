@@ -2,7 +2,7 @@
   "name": "nammd",
   "version": "0.0.1",
   "description": "",
-  "main": "docs/nammd.js",
+  "main": "docs/master/nammd.js",
   "scripts": {
     "tsc": "tsc",
     "build": "webpack"

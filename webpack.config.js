@@ -18,7 +18,7 @@ module.exports = {
   },
   output: {
     filename: 'nammd.js',
-    path: path.resolve(__dirname, 'docs'),
+    path: path.resolve(__dirname, 'docs/master/'),
   },
   plugins: [
     new LicenseWebpackPlugin({
