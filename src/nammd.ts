@@ -145,7 +145,7 @@ async function getContent(
   }
 ): Promise<any> {
   try {
-    const res = await getHttp(url, {type: type, header: header});
+    return await getHttp(url, {type: type, header: header});
   } catch (e) {
     if (e instanceof XMLHttpRequest && e.status === 404 && gitHubToken) {
       const g = parseGitHubUrl(url);
