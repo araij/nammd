@@ -32,7 +32,7 @@
 
 Absolute URL:
 
-![absolute-URL image](https://github.com/araij/nammd/tree/master/docs/test/213px-Taizokai.jpg)
+![absolute-URL image](https://araij.github.io/nammd/test/213px-Taizokai.jpg)
 
 </div>
 
