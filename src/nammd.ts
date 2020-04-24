@@ -51,9 +51,13 @@ function toRelativeUrl(url: string, base: string): string | null {
 }
 
 function getDirectory(path: string): string {
+ let i = path.indexOf("?");
+ if (i < 0) {
+   i = path.length;
+ }
   // Return "" if `path` does not contain "/" because `path.lastIndexOf("/")`
   // returns -1 in that case and thus `path.lastIndexOf("/") + 1 === 0`
-  return path.substring(0, path.lastIndexOf("/") + 1);
+  return path.substring(0, path.lastIndexOf("/", i) + 1);
 }
 
 function getQueryParameters(): {[key: string]: string} {
@@ -141,7 +145,7 @@ async function getContent(
   }
 ): Promise<any> {
   try {
-    const res = await getHttp(url, {type: type, header: header});
+    return await getHttp(url, {type: type, header: header});
   } catch (e) {
     if (e instanceof XMLHttpRequest && e.status === 404 && gitHubToken) {
       const g = parseGitHubUrl(url);
