@@ -4,17 +4,24 @@
   "description": "",
   "main": "docs/master/nammd.js",
   "scripts": {
+    "dev-server": "webpack-dev-server",
+    "test": "jest",
     "tsc": "tsc",
     "build": "webpack"
   },
   "author": "",
   "license": "MIT",
   "devDependencies": {
+    "jest": "^26.0.1",
+    "jest-puppeteer": "^4.4.0",
     "license-webpack-plugin": "^2.1.3",
+    "puppeteer": "^3.0.2",
+    "puppeteer-screenshot-tester": "^1.1.1",
     "ts-loader": "^6.2.1",
     "typescript": "^3.7.4",
     "webpack": "^4.41.5",
-    "webpack-cli": "^3.3.10"
+    "webpack-cli": "^3.3.10",
+    "webpack-dev-server": "^3.10.3"
   },
   "dependencies": {
     "@types/js-yaml": "^3.12.1",
