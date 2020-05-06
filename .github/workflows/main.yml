@@ -1,0 +1,28 @@
+name: Main workflow
+on:
+  pull_request:
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-18.04
+    steps:
+      - name: Check out the repository
+        uses: actions/checkout@v2
+      # Install Google Chrome to automatically install its dependencies.
+      # This Chrome is not used in Puppeteer.
+      - name: Install Google Chrome
+        run: |
+          wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+          sudo apt update
+          sudo apt install --no-install-recommends ./google-chrome-stable_current_amd64.deb
+      # Puppetteer depends on Node.js < 14
+      - name: Install Node.js v13
+        uses: actions/setup-node@v1
+        with:
+          node-version: 13.x
+      - name: Install dependencies
+        run: npm install
+      - name: Run the test script
+        run: |
+          npm run dev-server &
+          npm run test
