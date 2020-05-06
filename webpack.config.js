@@ -20,12 +20,18 @@ module.exports = {
     filename: 'nammd.js',
     path: path.resolve(__dirname, 'docs/master/'),
   },
+  devServer: {
+    contentBase: path.join(__dirname, 'docs'),
+    contentBasePublicPath: "/nammd/",
+    host: "0.0.0.0",
+    port: 8080,
+  },
   plugins: [
     new LicenseWebpackPlugin({
       outputFilename: './licenses.txt',
       addBanner: true,
       licenseFileOverrides: {
-	isarray: '../../licenses/isarray.txt',
+        isarray: '../../licenses/isarray.txt',
       },
     })
   ]
