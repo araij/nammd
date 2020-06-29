@@ -147,7 +147,11 @@ async function getContent(
   try {
     return await getHttp(url, {type: type, header: header});
   } catch (e) {
-    if (e instanceof XMLHttpRequest && e.status === 404 && gitHubToken) {
+    // We have two error cases in access to GitHub contents:
+    // 1. CORS: status === 0
+    // 2. Private repo access: status === 404 && gitHubToken
+    if (e instanceof XMLHttpRequest &&
+        ((e.status === 0) || (e.status === 404 && gitHubToken))) {
       const g = parseGitHubUrl(url);
       if (g) {
         return getGitHubPrivate(g, gitHubToken, {type: type})
@@ -292,9 +296,8 @@ async function embedLinkedCsses(r: Request): Promise<void> {
       .map(async e => {
         // Chrome seems to automatically replace `e.href` to an absolute URL.
         // Thus, we make the relative path and then re-make the absolute path.
-        const cssurl = toAbsoluteUrl(
-          toRelativeUrl(e.href, getDirectory(location.href)),
-          getDirectory(r.url));
+        const rel = toRelativeUrl(e.href, getDirectory(location.href));
+        const cssurl = rel ? toAbsoluteUrl(rel, getDirectory(r.url)) : e.href;
         try {
           const css = replaceCssUrls(
             await getContent(cssurl, {gitHubToken: r.token}),
